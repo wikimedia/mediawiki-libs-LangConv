@@ -2,8 +2,6 @@
 
 'use strict';
 
-require('../core-upgrade.js');
-
 /**
  * Compile an .att-format finite state transducer (as output by foma)
  * into a compact byte-array representation which is directly executable.

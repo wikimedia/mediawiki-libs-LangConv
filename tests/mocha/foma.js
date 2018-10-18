@@ -8,7 +8,7 @@ const Promise = require('../../lib/utils/promise.js');
 const childProcess = require('pn/child_process');
 const path = require('path');
 
-const PARSOID_TEST_FOMA = process.env.PARSOID_TEST_FOMA || false;
+const LANGCONV_TEST_FOMA = process.env.LANGCONV_TEST_FOMA || false;
 
 const langs = [
 	{
@@ -61,9 +61,9 @@ const langs = [
 describe('Foma FST verification', function() {
 	// These tests are expensive (generating the FST via foma takes a
 	// while) so only run them if the environment variable
-	// PARSOID_TEST_FOMA is set.
-	if (!PARSOID_TEST_FOMA) {
-		it.skip("PARSOID_TEST_FOMA is not set, skipping");
+	// LANGCONV_TEST_FOMA is set.
+	if (!LANGCONV_TEST_FOMA) {
+		it.skip("LANGCONV_TEST_FOMA is not set, skipping");
 		return;
 	}
 
