@@ -10,8 +10,7 @@
     "eslint-plugin-json": "^1.2.0",
     "jsdoc": "^3.5.5",
     "jsdoc-wmf-theme": "0.0.3",
-    "mocha": "^5.1.1",
-    "nsp": "^3.2.1"
+    "mocha": "^5.1.1"
   },
   "main": "lib/index.js",
   "scripts": {
@@ -19,9 +18,8 @@
     "eslint-fix": "eslint --fix lib",
     "mocha": "mocha --opts tests/mocha/mocha.opts tests/mocha",
     "rebuild-foma": "LANGCONV_TEST_FOMA=1 npm run mocha",
-    "test": "npm run nsp && npm run eslint && npm run mocha",
-    "doc": "jsdoc -c jsdoc.json",
-    "nsp": "nsp check"
+    "test": "npm run eslint && npm run mocha",
+    "doc": "jsdoc -c jsdoc.json"
   },
   "repository": {
     "type": "git",
