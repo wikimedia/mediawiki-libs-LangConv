@@ -2,8 +2,8 @@
 # Generates .att files when run from this directory using:
 #   foma -f sr.foma
 # Then generate executable .json files with:
-#   ../../../tools/build-langconv-fst.js -l sr-el sr-ec
-#   ../../../tools/build-langconv-fst.js -l sr-ec sr-el
+#   ../tools/build-langconv-fst.js -l sr-el sr-ec
+#   ../tools/build-langconv-fst.js -l sr-ec sr-el
 echo EXPECT 12
 
 # In PHP BREAKS is [^\w\x80-\xff]

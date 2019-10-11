@@ -68,7 +68,7 @@ describe('Foma FST verification', function() {
 	}
 
 	const rootDir = path.resolve(__dirname, '../..');
-	const fstDir = path.resolve(rootDir, 'lib/language/fst');
+	const fstDir = path.resolve(rootDir, 'fst');
 	const toolsDir = path.resolve(rootDir, 'tools');
 	langs.forEach((l) => {
 		describe(`Compiling ${l.base}.foma`, function() {

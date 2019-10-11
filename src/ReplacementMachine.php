@@ -49,7 +49,7 @@ class ReplacementMachine {
 	 * @return callable
 	 */
 	public function loadFST( $filename, $justBrackets = false ) {
-		return FST::compile( __dir__ . "/../lib/fst/$filename.pfst", $justBrackets );
+		return FST::compile( __dir__ . "/../fst/$filename.pfst", $justBrackets );
 	}
 
 	/**

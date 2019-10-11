@@ -78,7 +78,7 @@ const path = require('path');
 const yargs = require('yargs');
 const { StringDecoder } = require('string_decoder');
 
-const FST = require('../lib/language/FST.js');
+const FST = require('../lib/FST.js');
 
 const BYTE_IDENTITY = FST.constants.BYTE_IDENTITY;
 const BYTE_RBRACKET = FST.constants.BYTE_RBRACKET;
@@ -573,7 +573,7 @@ function main() {
 	} else if (argv.language) {
 		const convertLang = argv.language[0];
 		const inverseLangs = argv.language.slice(1);
-		const baseDir = path.join(__dirname, '..', 'lib', 'language', 'fst');
+		const baseDir = path.join(__dirname, '..', 'fst');
 		for (const f of [
 			`trans-${convertLang}`,
 			`brack-${convertLang}-noop`,
