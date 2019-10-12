@@ -10,7 +10,7 @@ use Wikimedia\Assert\Assert;
 class ReplacementMachine {
 
 	private $baseLanguage;
-	private $codes;
+	private $codes = [];
 	private $machines = [];
 
 	/**
@@ -20,11 +20,12 @@ class ReplacementMachine {
 	 */
 	public function __construct( $baseLanguage, $codes ) {
 		$this->baseLanguage = $baseLanguage;
-		$this->codes = $codes;
 		foreach ( $codes as $code ) {
+			// Set key *and* value of `codes` to allow use as set
+			$this->codes[ $code ] = $code;
 			$bracketMachines = [];
 			foreach ( $codes as $code2 ) {
-				if ( !$this->validCodePair( $code, $code2 ) ) {
+				if ( !$this->isValidCodePair( $code, $code2 ) ) {
 					continue;
 				}
 				$dstCode = $code === $code2 ? 'noop' : $code2;
@@ -37,7 +38,12 @@ class ReplacementMachine {
 		}
 	}
 
-	/** @return string[] */
+	/**
+	 * Return the set of language codes supported.  Both key and value are
+	 * set in order to facilitate inclusion testing.
+	 *
+	 * @return array<string,string>
+	 */
 	public function getCodes() {
 		return $this->codes;
 	}
@@ -60,7 +66,7 @@ class ReplacementMachine {
 	 * @param string $invertCode
 	 * @return bool whether this is a valid bracketing pair.
 	 */
-	public function validCodePair( $destCode, $invertCode ) {
+	public function isValidCodePair( $destCode, $invertCode ) {
 		return true;
 	}
 
@@ -76,11 +82,10 @@ class ReplacementMachine {
 	 * @param string $s
 	 * @param string $destCode
 	 * @param string $invertCode
-	 * @return array Statistics about the given guess, containing the keys 'safe', 'unsafe', and
-	 * 'length' (should be `safe + unsafe`.)
+	 * @return BracketResult Statistics about the given guess.
 	 */
 	public function countBrackets( $s, $destCode, $invertCode ) {
-		Assert::precondition( $this->validCodePair( $destCode, $invertCode ),
+		Assert::precondition( $this->isValidCodePair( $destCode, $invertCode ),
 			"Invalid code pair: $destCode/$invertCode" );
 		$m = $this->machines[$destCode]['bracket'][$invertCode];
 		// call array_values on the result of unpack() to transform from a 1- to 0-indexed array
@@ -95,11 +100,9 @@ class ReplacementMachine {
 			}
 		}
 		// Note that this is counting codepoints, not UTF-8 code units.
-		return [
-			'safe' => $safe,
-			'unsafe' => $unsafe,
-			'length' => $brackets[count( $brackets ) - 1]
-		];
+		return new BracketResult(
+			$safe, $unsafe, $brackets[count( $brackets ) - 1]
+		);
 	}
 
 	/**
@@ -123,14 +126,19 @@ class ReplacementMachine {
 			// `fragment` has exactly 1 child.
 			$fragment->firstChild && !$fragment->firstChild->nextSibling &&
 			// `fragment.firstChild` is a DOM text node
-			$fragment->firstChild->nodeType === 3 &&
+			$fragment->firstChild->nodeType === XML_TEXT_NODE &&
 			// `textNode` is a DOM text node
-			$textNode->nodeType === 3 &&
-			$textNode->textContent === $fragment->textContent
+			$textNode->nodeType === XML_TEXT_NODE &&
+			$textNode->textContent === $fragment->firstChild->textContent
 		) {
 			return $next; // No change.
 		}
-		$textNode->parentNode->replaceChild( $fragment, $textNode );
+		// Poor man's `$textNode->replaceWith($fragment)`; use the
+		// actual DOM method if/when we switch to a proper DOM implementation
+		$parentNode = $textNode->parentNode;
+		$parentNode->insertBefore( $fragment, $textNode );
+		$parentNode->removeChild( $textNode );
+
 		return $next;
 	}
 
@@ -174,9 +182,9 @@ class ReplacementMachine {
 				// more appropriate invertCode !== destCode.
 				$ic = $invertCode;
 				if ( $ic === $destCode ) {
-					$cs = array_filter( $this->codes, function ( $code ) use ( $destCode ) {
+					$cs = array_values( array_filter( $this->codes, function ( $code ) use ( $destCode ) {
 						return $code !== $destCode;
-					} );
+					} ) );
 					$cs = array_map( function ( $code ) use ( $orig ) {
 						return [
 							'code' => $code,
@@ -184,7 +192,7 @@ class ReplacementMachine {
 						];
 					}, $cs );
 					uasort( $cs, function ( $a, $b ) {
-						return $a['stats']['unsafe'] - $b['stats']['unsafe'];
+						return $a['stats']->unsafe - $b['stats']->unsafe;
 					} );
 					if ( count( $cs ) === 0 ) {
 						$ic = '-';
@@ -193,7 +201,7 @@ class ReplacementMachine {
 						$span->setAttribute( 'data-mw-variant-lang', $ic );
 					}
 				}
-				$span->setAttribute( 'data-mw-variant', json_encode( [
+				$span->setAttribute( 'data-mw-variant', $this->jsonEncode( [
 					'twoway' => [
 						[ 'l' => $ic, 't' => $orig ],
 						[ 'l' => $destCode, 't' => $unsafe ],
@@ -206,6 +214,16 @@ class ReplacementMachine {
 			}
 		}
 		return $result;
+	}
+
+	/**
+	 * Allow client to customize the JSON encoding of data-mw-variant
+	 * attributes.
+	 * @param array $obj The structured attribute value to encode
+	 * @return string The encoded attribute value
+	 */
+	public function jsonEncode( array $obj ): string {
+		return json_encode( $obj, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 	}
 
 }

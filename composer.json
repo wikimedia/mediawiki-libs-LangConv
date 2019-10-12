@@ -44,7 +44,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Wikimedia\\LangConv\\Tests\\": "tests/phpunit/"
+      "Test\\Wikimedia\\LangConv\\": "tests/phpunit/"
     }
   },
   "scripts": {

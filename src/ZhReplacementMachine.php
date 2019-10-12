@@ -21,7 +21,7 @@ class ZhReplacementMachine extends ReplacementMachine {
 	}
 
 	/** @inheritDoc */
-	public function validCodePair( $destCode, $invertCode ) {
+	public function isValidCodePair( $destCode, $invertCode ) {
 		if ( $destCode === $invertCode ) {
 			return true;
 		}
