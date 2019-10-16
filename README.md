@@ -5,6 +5,19 @@
 
 Finite-State Transducer implementation of Wikimedia LanguageConverter
 
+## Install
+The JavaScript implementation is available via npm:
+
+```bash
+$ npm install wikimedia-langconv
+```
+
+The PHP implementation is [available on Packagist](https://packagist.org/packages/wikimedia/langconv):
+
+```bash
+$ composer require wikimedia/langconv
+```
+
 ## Usage
 
 
@@ -12,7 +25,7 @@ Finite-State Transducer implementation of Wikimedia LanguageConverter
 
 ## License
 
-Copyright (c) 2018 Wikimedia Foundation and others; see `AUTHORS.txt`
+Copyright (c) 2018-2019 Wikimedia Foundation and others; see `AUTHORS.txt`
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
