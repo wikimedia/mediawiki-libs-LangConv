@@ -9,16 +9,16 @@ use Error;
  * bracketing machine from a compact JSON description.
  */
 class FST {
-	const MAGIC_BYTES = 8; // 8 byte header w/ magic bytes
+	private const MAGIC_BYTES = 8; // 8 byte header w/ magic bytes
 
 	// These pseudo-characters appear in the "output" side of the FST only.
-	const BYTE_IDENTITY = 0xFF;
-	const BYTE_RBRACKET = 0xFE;
-	const BYTE_LBRACKET = 0xFD;
-	const BYTE_FAIL     = 0xFC;
+	private const BYTE_IDENTITY = 0xFF;
+	private const BYTE_RBRACKET = 0xFE;
+	private const BYTE_LBRACKET = 0xFD;
+	private const BYTE_FAIL     = 0xFC;
 	// These pseudo-characters appear in the "input" side of the FST.
-	const BYTE_EOF      = 0xF8; // The highest possible input char
-	const BYTE_EPSILON  = 0x00; // Always appears first in sorted order
+	private const BYTE_EOF      = 0xF8; // The highest possible input char
+	private const BYTE_EPSILON  = 0x00; // Always appears first in sorted order
 
 	/**
 	 * Load an FST description and return a function which runs the machine.
