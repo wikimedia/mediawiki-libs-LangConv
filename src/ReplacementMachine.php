@@ -52,9 +52,9 @@ class ReplacementMachine {
 	 * Load a conversion machine from a pFST file with filename $filename from the fst directory.
 	 * @param string $filename filename, omitting the .pfst file extension
 	 * @param bool $justBrackets whether to return only the bracket locations
-	 * @return callable
+	 * @return FST
 	 */
-	public function loadFST( $filename, $justBrackets = false ) {
+	public function loadFST( string $filename, bool $justBrackets = false ): FST {
 		return FST::compile( __dir__ . "/../fst/$filename.pfst", $justBrackets );
 	}
 
@@ -84,13 +84,12 @@ class ReplacementMachine {
 	 * @param string $invertCode
 	 * @return BracketResult Statistics about the given guess.
 	 */
-	public function countBrackets( $s, $destCode, $invertCode ) {
+	public function countBrackets( string $s, $destCode, $invertCode ) {
 		Assert::precondition( $this->isValidCodePair( $destCode, $invertCode ),
 			"Invalid code pair: $destCode/$invertCode" );
 		$m = $this->machines[$destCode]['bracket'][$invertCode];
 		// call array_values on the result of unpack() to transform from a 1- to 0-indexed array
-		$bytes = array_values( unpack( 'C*', $s ) );
-		$brackets = $m( $bytes, 0, count( $bytes ), true );
+		$brackets = $m->run( $s, 0, strlen( $s ), true );
 		$safe = 0;
 		$unsafe = 0;
 		for ( $i = 1; $i < count( $brackets ); $i++ ) {
@@ -157,23 +156,18 @@ class ReplacementMachine {
 		$bracketM = $machine['bracket'][$invertCode];
 		$result = $document->createDocumentFragment();
 
-		// call array_values on the result of unpack() to transform from a 1- to 0-indexed array
-		$bytes = array_values( unpack( 'C*', $s ) );
-		$brackets = $bracketM( $bytes );
+		$brackets = $bracketM->run( $s );
 
 		for ( $i = 1, $len = count( $brackets ); $i < $len; $i++ ) {
 			// A safe string
-			$safe = $convertM( $bytes, $brackets[$i - 1], $brackets[$i] );
+			$safe = $convertM->run( $s, $brackets[$i - 1], $brackets[$i] );
 			if ( strlen( $safe ) > 0 ) {
 				$result->appendChild( $document->createTextNode( $safe ) );
 			}
 			if ( ++$i < count( $brackets ) ) {
 				// An unsafe string
-				$orig = call_user_func_array(
-					'pack',
-					array_merge( [ "C*" ], array_slice( $bytes, $brackets[$i - 1], $brackets[$i] ) )
-				);
-				$unsafe = $convertM( $bytes, $brackets[$i - 1], $brackets[$i] );
+				$orig = substr( $s, $brackets[$i - 1], $brackets[$i] );
+				$unsafe = $convertM->run( $s, $brackets[$i - 1], $brackets[$i] );
 				$span = $document->createElement( 'span' );
 				$span->textContent = $unsafe;
 				$span->setAttribute( 'typeof', 'mw:LanguageVariant' );

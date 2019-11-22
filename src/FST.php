@@ -2,7 +2,7 @@
 
 namespace Wikimedia\LangConv;
 
-use Error;
+use Wikimedia\Assert\Assert;
 
 /**
  * Load and execute a finite-state transducer (FST) based converter or
@@ -21,182 +21,210 @@ class FST {
 	private const BYTE_EPSILON  = 0x00; // Always appears first in sorted order
 
 	/**
-	 * Load an FST description and return a function which runs the machine.
-	 * @param string|array $pfst The FST description  either as a filename (to be loaded synchronously)
-	 *  or a loaded byte array.
-	 * @param bool $justBrackets The machine will return an array of bracket locations,
-	 *  instead of the converted text.
-	 * @return callable
+	 * FST, packed as a string.
+	 * @var string
 	 */
-	public static function compile( $pfst, $justBrackets = false ) {
-		if ( is_string( $pfst ) ) {
-			$file = file_get_contents( $pfst );
-			// call array_values on the result of unpack() to transform from a 1- to 0-indexed array
-			$pfst = array_values( unpack( 'C*', $file ) );
+	private $pfst;
+
+	/**
+	 * @var bool
+	 */
+	private $justBrackets;
+
+	/**
+	 * @param string $pfst
+	 * @param bool $justBrackets
+	 */
+	private function __construct( string $pfst, bool $justBrackets ) {
+		$this->pfst = $pfst;
+		$this->justBrackets = $justBrackets;
+		Assert::precondition(
+			strlen( $pfst ) >= self::MAGIC_BYTES + 2 /*states, min*/,
+			"pFST file too short"
+		);
+		Assert::precondition(
+			"pFST\0WM\0" ===
+			substr( $pfst, 0, self::MAGIC_BYTES ),
+			"Invalid pFST file"
+		);
+	}
+
+	/**
+	 * @param string $input
+	 * @param int|null $start
+	 * @param int|null $end
+	 * @return array
+	 */
+	public function split( string $input, ?int $start = null, ?int $end = null ): array {
+		// Debugging helper: instead of an array of positions, split the
+		// input at the bracket locations and return an array of strings.
+		Assert::precondition( $this->justBrackets, "Needs a bracket machine" );
+		$end = $end ?? strlen( $input );
+		$r = $this->run( $input, $start, $end );
+		$r[] = $end;
+		$i = 0;
+		$nr = [];
+		foreach ( $r as $j ) {
+			$nr[] = substr( $input, $i, $j );
+			$i = $j;
 		}
-		if (
-			count( $pfst ) < ( self::MAGIC_BYTES + 2/* states, min*/ ) ||
-				call_user_func_array(
-					'pack',
-					array_merge( [ "C*" ], array_slice( $pfst, 0, 8 ) )
-				) !== "pFST\0WM\0"
-		) {
-			throw new Error( "Invalid pFST file." );
+		return $nr;
+	}
+
+	// Read zig-zag encoded variable length integers
+	// (See [[:en:Variable-length_quantity#Zigzag_encoding]])
+	private function readUnsignedV( int &$state ): int {
+		$b = ord( $this->pfst[$state++] );
+		$val = $b & 127;
+		while ( $b & 128 ) {
+			$val += 1;
+			$b = ord( $this->pfst[$state++] );
+			$val = ( $val << 7 ) + ( $b & 127 );
 		}
-		if ( $justBrackets === "split" ) {
-			// Debugging helper: instead of an array of positions, split the
-			// input at the bracket locations and return an array of strings.
-			$bfunc = self::compile( $pfst, true );
-			return function ( $input, $start = null, $end = null ) use ( $bfunc ) {
-				$end = $end ?? count( $input );
-				$r = $bfunc( $input, $start, $end );
-				$r[] = $end;
-				$i = 0;
-				return array_map( function ( $j ) use ( $input, &$i ) {
-					$b = substr( $input, $i, $j );
-					$i = $j;
-					return $b;
-				}, $r );
-			};
+		return $val;
+	}
+
+	private function readSignedV( int &$state ): int {
+		$v = $this->readUnsignedV( $state );
+		if ( $v & 1 ) { // sign bit is in LSB
+			return -( $v >> 1 ) - 1;
+		} else {
+			return $v >> 1;
 		}
-		return function ( $input, $start = null, $end = null, $unicode = false )
-			use ( $pfst, $justBrackets ) {
-			$start = $start ?? 0;
-			$end = $end ?? count( $input );
-			$countCodePoints = $justBrackets && $unicode;
-			$initialState = self::MAGIC_BYTES + 2; /* eof state */
-			$state = $initialState;
-			$idx = $start;
-			$outpos = 0;
-			$brackets = [ 0 ];
-			$stack = [];
-			$result = [];
+	}
 
-			// Read zig-zag encoded variable length integers
-			// (See [[:en:Variable-length_quantity#Zigzag_encoding]])
-			$readUnsignedV = function () use ( $pfst, &$state ) {
-				$b = $pfst[$state++];
-				$val = $b & 127;
-				while ( $b & 128 ) {
-					$val += 1;
-					$b = $pfst[$state++];
-					$val = ( $val << 7 ) + ( $b & 127 );
-				}
-				return $val;
-			};
+	/**
+	 * @param string $input
+	 * @param int|null $start
+	 * @param int|null $end
+	 * @param bool $unicode
+	 * @return string|array
+	 */
+	public function run( string $input, ?int $start = null, ?int $end = null, bool $unicode = false ) {
+		$start = $start ?? 0;
+		$end = $end ?? strlen( $input );
+		$countCodePoints = $this->justBrackets && $unicode;
+		$initialState = self::MAGIC_BYTES + 2; /* eof state */
+		$state = $initialState;
+		$idx = $start;
+		$outpos = 0;
+		$brackets = [ 0 ];
+		$stack = [];
+		$result = "";
 
-			$readSignedV = function () use ( $readUnsignedV ) {
-				$v = $readUnsignedV();
-				if ( $v & 1 ) { // sign bit is in LSB
-					return -( $v >> 1 ) - 1;
-				} else {
-					return $v >> 1;
-				}
-			};
+		// Add a character to the output.
+		$emit = $this->justBrackets ?
+			  function ( $code ) use ( $countCodePoints, &$brackets, &$outpos ) {
+				  if ( $code === self::BYTE_LBRACKET || $code === self::BYTE_RBRACKET ) {
+					  $brackets[] = $outpos;
+				  } elseif ( $countCodePoints && $code >= 0x80 && $code < 0xC0 ) {
+					  /* Ignore UTF-8 continuation characters */
+				  } else {
+					  $outpos++;
+				  }
+			  } :
+			  function ( $code ) use ( &$result, &$outpos ) {
+				  $result .= chr( $code );
+				  $outpos++;
+			  };
 
-			// Add a character to the output.
-			$emit = $justBrackets ? function ( $code ) use ( $countCodePoints, &$brackets,
-				&$outpos, &$result ) {
-				if ( $code === self::BYTE_LBRACKET || $code === self::BYTE_RBRACKET ) {
-					$brackets[] = $outpos;
-				} elseif ( $countCodePoints && $code >= 0x80 && $code < 0xC0 ) {
-					/* Ignore UTF-8 continuation characters */
-				} else {
-					$outpos++;
-				}
-			} : function ( $code ) use ( &$result, &$outpos ) {
-				$result[$outpos++] = $code;
-			};
+		// Save the current machine state before taking a non-deterministic edge;
+		// if the machine fails, restart at the given `state`
+		$save = function ( $epsEdge ) use ( &$idx, &$outpos, &$stack, &$brackets ) {
+			$stack[] = new BacktrackState( $epsEdge, $outpos, $idx, count( $brackets ) );
+		};
 
-			// Save the current machine state before taking a non-deterministic edge;
-			// if the machine fails, restart at the given `state`
-			$save = function ( $epsEdge ) use ( &$idx, &$outpos, &$stack, &$brackets ) {
-				$stack[] = [
-						"epsEdge" => $epsEdge,
-						"outpos" => $outpos,
-						"idx" => $idx,
-						"blen" => count( $brackets )
-				];
-			};
-
-			$reset = function () use ( $pfst, &$state, &$idx, &$outpos, &$stack, &$brackets,
-				$readSignedV, $emit ) {
+		$reset = function ()
+			use ( &$state, &$idx, &$outpos, &$result, &$stack, &$brackets, $emit ) {
 				$s = array_pop( $stack );
-				$outpos = $s["outpos"];
-				$idx = $s["idx"];
-				$brackets = array_slice( $brackets, 0, $s["blen"] );
+				$outpos = $s->outpos;
+				$result = substr( $result, 0, $outpos );
+				$idx = $s->idx;
+				array_splice( $brackets, $s->blen );
 				// Get outByte from this edge, then jump to next state
-				$state = $s["epsEdge"] + 1; /* skip over inByte */
-				$edgeOut = $pfst[$state++];
+				$state = $s->epsEdge + 1; /* skip over inByte */
+				$edgeOut = ord( $this->pfst[$state++] );
 				if ( $edgeOut !== self::BYTE_EPSILON ) {
 					$emit( $edgeOut );
 				}
 				$edgeDest = $state;
-				$edgeDest += $readSignedV();
+				$edgeDest += $this->readSignedV( $state );
 				$state = $edgeDest;
-			};
+		};
 
-			// This runs the machine until we reach the EOF state
-			while ( $state >= $initialState ) {
-				$edgeWidth = $readUnsignedV();
-				$nEdges = $readUnsignedV();
+		// This runs the machine until we reach the EOF state
+		while ( $state >= $initialState ) {
+			if ( $state === $initialState ) {
+				// Memory efficiency: since the machine is universal we know
+				// we'll never fail as long as we're in the initial state.
+				array_splice( $stack, 0 );
+			}
+			$edgeWidth = $this->readUnsignedV( $state );
+			$nEdges = $this->readUnsignedV( $state );
+			if ( $nEdges === 0 ) {
+				$reset();
+				continue;
+			}
+			// Read first edge to see if there are any epsilon edges
+			$edge0 = $state;
+			while ( ord( $this->pfst[$edge0] ) === self::BYTE_EPSILON ) {
+				// If this is an epsilon edge, then save a backtrack state
+				$save( $edge0 );
+				$edge0 += $edgeWidth;
+				$nEdges--;
 				if ( $nEdges === 0 ) {
 					$reset();
-					continue;
+					continue 2;
 				}
-				// Read first edge to see if there are any epsilon edges
-				$edge0 = $state;
-				while ( $pfst[$edge0] === self::BYTE_EPSILON ) {
-					// If this is an epsilon edge, then save a backtrack state
-					$save( $edge0 );
-					$edge0 += $edgeWidth;
-					$nEdges--;
-					if ( $nEdges === 0 ) {
-						$reset();
-						continue 2;
-					}
-				}
-				// Binary search for an edge matching c
-				$c = $idx < $end ? $input[$idx++] : /* pseudo-character: */ self::BYTE_EOF;
-				$minIndex = 0;
-				$maxIndex = $nEdges;
-				while ( $minIndex !== $maxIndex ) {
-					$currentIndex = ( $minIndex + $maxIndex ) >> 1;
-					$targetEdge = $edge0 + ( $edgeWidth * $currentIndex );
-					$inByte = $pfst[$targetEdge];
-					if ( $inByte <= $c ) {
-						$minIndex = $currentIndex + 1;
-					} else {
-						$maxIndex = $currentIndex;
-					}
-				}
-				// (minIndex-1).inByte <= c, and maxIndex.inByte > c
-				$targetEdge = $edge0 + ( $edgeWidth * ( $minIndex - 1 ) );
-				$outByte = $minIndex > 0 ? $pfst[$targetEdge + 1] : self::BYTE_FAIL;
-				if ( $outByte === self::BYTE_FAIL ) {
-					$reset();
-					continue;
-				}
-				if ( $outByte !== self::BYTE_EPSILON ) {
-					if ( $outByte === self::BYTE_IDENTITY ) {
-						$outByte = $c; // Copy input byte to output
-					}
-					$emit( $outByte );
-				}
-				$state = $targetEdge + 2; // skip over inByte/outByte
-				$state = $readSignedV() + ( $targetEdge + 2 );
 			}
+			// Binary search for an edge matching c
+			$c = $idx < $end ? ord( $input[$idx++] ) : /* pseudo-character: */ self::BYTE_EOF;
+			$minIndex = 0;
+			$maxIndex = $nEdges;
+			while ( $minIndex !== $maxIndex ) {
+				$currentIndex = ( $minIndex + $maxIndex ) >> 1;
+				$targetEdge = $edge0 + ( $edgeWidth * $currentIndex );
+				$inByte = ord( $this->pfst[$targetEdge] );
+				if ( $inByte <= $c ) {
+					$minIndex = $currentIndex + 1;
+				} else {
+					$maxIndex = $currentIndex;
+				}
+			}
+			// (minIndex-1).inByte <= c, and maxIndex.inByte > c
+			$targetEdge = $edge0 + ( $edgeWidth * ( $minIndex - 1 ) );
+			$outByte = $minIndex > 0 ? ord( $this->pfst[$targetEdge + 1] ) : self::BYTE_FAIL;
+			if ( $outByte === self::BYTE_FAIL ) {
+				$reset();
+				continue;
+			}
+			if ( $outByte !== self::BYTE_EPSILON ) {
+				if ( $outByte === self::BYTE_IDENTITY ) {
+					$outByte = $c; // Copy input byte to output
+				}
+				$emit( $outByte );
+			}
+			$state = $targetEdge + 2; // skip over inByte/outByte
+			$state = $this->readSignedV( $state ) + ( $targetEdge + 2 );
+		}
 
-			// Ok, process the final state and return something.
-			if ( $justBrackets ) {
-				$brackets[] = $outpos;
-				return $brackets;
-			}
-			return call_user_func_array(
-				'pack',
-				array_merge( [ "C*" ], array_slice( $result, 0, $outpos ) )
-			);
-		};
+		// Ok, process the final state and return something.
+		if ( $this->justBrackets ) {
+			$brackets[] = $outpos;
+			return $brackets;
+		}
+		Assert::invariant( strlen( $result ) === $outpos, "Something went wrong" );
+		return $result;
 	}
 
+	/**
+	 * Load an FST description and return a function which runs the machine.
+	 * @param string $pfst The FST description as a filename (to be loaded synchronously)
+	 * @param bool $justBrackets The machine will return an array of bracket locations,
+	 *  instead of the converted text.
+	 * @return FST
+	 */
+	public static function compile( string $pfst, $justBrackets = false ): FST {
+		return new FST( file_get_contents( $pfst ), $justBrackets );
+	}
 }
