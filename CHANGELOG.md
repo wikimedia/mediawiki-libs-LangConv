@@ -1,3 +1,6 @@
+# wikimedia-langconv 0.3.0 (2019-11-25)
+* Significant performance improvements to PHP port.
+
 # wikimedia-langconv 0.2.0 (2019-11-20)
 * Updated wikimedia/assert and mediawiki/mediawiki-codesniffer versions.
 
