@@ -135,7 +135,9 @@ class ReplacementMachine {
 		// Poor man's `$textNode->replaceWith($fragment)`; use the
 		// actual DOM method if/when we switch to a proper DOM implementation
 		$parentNode = $textNode->parentNode;
-		$parentNode->insertBefore( $fragment, $textNode );
+		if ( $fragment->firstChild ) { # fragment could be empty!
+			$parentNode->insertBefore( $fragment, $textNode );
+		}
 		$parentNode->removeChild( $textNode );
 
 		return $next;
