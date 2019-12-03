@@ -21,6 +21,12 @@ class FST {
 	private const BYTE_EPSILON  = 0x00; // Always appears first in sorted order
 
 	/**
+	 * Name of pFST file (for debugging and error messages).
+	 * @var string
+	 */
+	private $name;
+
+	/**
 	 * FST, packed as a string.
 	 * @var string
 	 */
@@ -32,20 +38,22 @@ class FST {
 	private $justBrackets;
 
 	/**
+	 * @param string $name
 	 * @param string $pfst
 	 * @param bool $justBrackets
 	 */
-	private function __construct( string $pfst, bool $justBrackets ) {
+	private function __construct( string $name, string $pfst, bool $justBrackets ) {
+		$this->name = $name;
 		$this->pfst = $pfst;
 		$this->justBrackets = $justBrackets;
 		Assert::precondition(
 			strlen( $pfst ) >= self::MAGIC_BYTES + 2 /*states, min*/,
-			"pFST file too short"
+			"pFST file too short: $name"
 		);
 		Assert::precondition(
 			"pFST\0WM\0" ===
 			substr( $pfst, 0, self::MAGIC_BYTES ),
-			"Invalid pFST file"
+			"Invalid pFST file: $name"
 		);
 	}
 
@@ -58,7 +66,8 @@ class FST {
 	public function split( string $input, ?int $start = null, ?int $end = null ): array {
 		// Debugging helper: instead of an array of positions, split the
 		// input at the bracket locations and return an array of strings.
-		Assert::precondition( $this->justBrackets, "Needs a bracket machine" );
+		Assert::precondition( $this->justBrackets,
+							 "Needs a bracket machine: " . $this->name );
 		$end = $end ?? strlen( $input );
 		$r = $this->run( $input, $start, $end );
 		$r[] = $end;
@@ -137,6 +146,7 @@ class FST {
 		$reset = function ()
 			use ( &$state, &$idx, &$outpos, &$result, &$stack, &$brackets, $emit ) {
 				$s = array_pop( $stack );
+				Assert::invariant( $s !== null, $this->name ); # catch underflow
 				$outpos = $s->outpos;
 				$result = substr( $result, 0, $outpos );
 				$idx = $s->idx;
@@ -213,7 +223,7 @@ class FST {
 			$brackets[] = $outpos;
 			return $brackets;
 		}
-		Assert::invariant( strlen( $result ) === $outpos, "Something went wrong" );
+		Assert::invariant( strlen( $result ) === $outpos, $this->name );
 		return $result;
 	}
 
@@ -225,6 +235,6 @@ class FST {
 	 * @return FST
 	 */
 	public static function compile( string $pfst, $justBrackets = false ): FST {
-		return new FST( file_get_contents( $pfst ), $justBrackets );
+		return new FST( $pfst, file_get_contents( $pfst ), $justBrackets );
 	}
 }
