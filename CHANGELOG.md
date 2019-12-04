@@ -1,3 +1,6 @@
+# wikimedia-langconv 0.3.1 (2019-12-04)
+* Suppress warning in PHP port; debugging improvements.
+
 # wikimedia-langconv 0.3.0 (2019-11-25)
 * Significant performance improvements to PHP port.
 
