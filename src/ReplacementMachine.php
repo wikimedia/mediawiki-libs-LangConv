@@ -168,7 +168,7 @@ class ReplacementMachine {
 			}
 			if ( ++$i < count( $brackets ) ) {
 				// An unsafe string
-				$orig = substr( $s, $brackets[$i - 1], $brackets[$i] );
+				$orig = substr( $s, $brackets[$i - 1], $brackets[$i] - $brackets[$i - 1] );
 				$unsafe = $convertM->run( $s, $brackets[$i - 1], $brackets[$i] );
 				$span = $document->createElement( 'span' );
 				$span->textContent = $unsafe;
