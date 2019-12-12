@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fc5943e679f0c07e6670baf6313e8895",
+    "content-hash": "570c994e6eeec539799dd37f3d57b1ed",
     "packages": [
         {
             "name": "wikimedia/assert",

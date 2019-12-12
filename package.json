@@ -1,6 +1,6 @@
 {
 	"name": "wikimedia-langconv",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "Finite-State Transducer implementation of MediaWiki LanguageConverter",
 	"devDependencies": {
 		"eslint": "^4.19.1",
