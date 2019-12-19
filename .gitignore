@@ -12,3 +12,4 @@ vendor/
 docs/
 coverage/
 deploy/
+composer.lock
