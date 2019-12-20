@@ -117,15 +117,15 @@ class FST {
 		$state = $initialState;
 		$idx = $start;
 		$outpos = 0;
-		$brackets = [ 0 ];
-		$stack = [];
-		$result = "";
+		$stack = [ new BacktrackState( 0, 0, 0 ) ];
+		$result = $stack[0];
+		$result->partialBrackets[] = 0;
 
 		// Add a character to the output.
 		$emit = $this->justBrackets ?
-			  function ( $code ) use ( $countCodePoints, &$brackets, &$outpos ) {
+			  function ( $code ) use ( $countCodePoints, &$result, &$outpos ) {
 				  if ( $code === self::BYTE_LBRACKET || $code === self::BYTE_RBRACKET ) {
-					  $brackets[] = $outpos;
+					  $result->partialBrackets[] = $outpos;
 				  } elseif ( $countCodePoints && $code >= 0x80 && $code < 0xC0 ) {
 					  /* Ignore UTF-8 continuation characters */
 				  } else {
@@ -133,24 +133,24 @@ class FST {
 				  }
 			  } :
 			  function ( $code ) use ( &$result, &$outpos ) {
-				  $result .= chr( $code );
+				  $result->partialResult .= chr( $code );
 				  $outpos++;
 			  };
 
 		// Save the current machine state before taking a non-deterministic edge;
 		// if the machine fails, restart at the given `state`
-		$save = function ( $epsEdge ) use ( &$idx, &$outpos, &$stack, &$brackets ) {
-			$stack[] = new BacktrackState( $epsEdge, $outpos, $idx, count( $brackets ) );
+		$save = function ( $epsEdge ) use ( &$idx, &$result, &$outpos, &$stack ) {
+			$result = new BacktrackState( $epsEdge, $outpos, $idx );
+			$stack[] = $result;
 		};
 
 		$reset = function ()
-			use ( &$state, &$idx, &$outpos, &$result, &$stack, &$brackets, $emit ) {
+			use ( &$state, &$idx, &$outpos, &$result, &$stack, $emit ) {
+				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
 				$s = array_pop( $stack );
-				Assert::invariant( $s !== null, $this->name ); # catch underflow
 				$outpos = $s->outpos;
-				$result = substr( $result, 0, $outpos );
+				$result = $stack[count( $stack ) - 1];
 				$idx = $s->idx;
-				array_splice( $brackets, $s->blen );
 				// Get outByte from this edge, then jump to next state
 				$state = $s->epsEdge + 1; /* skip over inByte */
 				$edgeOut = ord( $this->pfst[$state++] );
@@ -164,10 +164,19 @@ class FST {
 
 		// This runs the machine until we reach the EOF state
 		while ( $state >= $initialState ) {
-			if ( $state === $initialState ) {
+			if ( $state === $initialState && count( $stack ) > 1 ) {
 				// Memory efficiency: since the machine is universal we know
 				// we'll never fail as long as we're in the initial state.
-				array_splice( $stack, 0 );
+				$result = $stack[0];
+				foreach ( array_splice( $stack, 1 ) as $s ) {
+					if ( $this->justBrackets ) {
+						foreach ( $s->partialBrackets as $b ) {
+							$result->partialBrackets[] = $b;
+						}
+					} else {
+						$result->partialResult .= $s->partialResult;
+					}
+				}
 			}
 			$edgeWidth = $this->readUnsignedV( $state );
 			$nEdges = $this->readUnsignedV( $state );
@@ -219,12 +228,22 @@ class FST {
 		}
 
 		// Ok, process the final state and return something.
-		if ( $this->justBrackets ) {
-			$brackets[] = $outpos;
-			return $brackets;
+		$result = $stack[0];
+		foreach ( array_splice( $stack, 1 ) as $s ) {
+			if ( $this->justBrackets ) {
+				foreach ( $s->partialBrackets as $b ) {
+					$result->partialBrackets[] = $b;
+				}
+			} else {
+				$result->partialResult .= $s->partialResult;
+			}
 		}
-		Assert::invariant( strlen( $result ) === $outpos, $this->name );
-		return $result;
+		if ( $this->justBrackets ) {
+			$result->partialBrackets[] = $outpos;
+			return $result->partialBrackets;
+		}
+		Assert::invariant( strlen( $result->partialResult ) === $outpos, $this->name );
+		return $result->partialResult;
 	}
 
 	/**

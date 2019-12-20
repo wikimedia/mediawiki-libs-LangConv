@@ -17,27 +17,30 @@ class BacktrackState {
 	 */
 	public $outpos;
 	/**
+	 * Speculative result string.
+	 * @var string
+	 */
+	public $partialResult = '';
+	/**
+	 * Speculative bracket list.
+	 * @var int[]
+	 */
+	public $partialBrackets = [];
+	/**
 	 * Position in the input string.
 	 * @var int
 	 */
 	public $idx;
-	/**
-	 * Length of the bracket result array.
-	 * @var int
-	 */
-	public $blen;
 
 	/**
 	 * Create a new BacktrackState.
 	 * @param int $epsEdge
 	 * @param int $outpos
 	 * @param int $idx
-	 * @param int $blen
 	 */
-	public function __construct( int $epsEdge, int $outpos, int $idx, int $blen ) {
+	public function __construct( int $epsEdge, int $outpos, int $idx ) {
 		$this->epsEdge = $epsEdge;
 		$this->outpos = $outpos;
 		$this->idx = $idx;
-		$this->blen = $blen;
 	}
 }
