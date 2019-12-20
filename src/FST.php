@@ -137,13 +137,6 @@ class FST {
 				  $outpos++;
 			  };
 
-		// Save the current machine state before taking a non-deterministic edge;
-		// if the machine fails, restart at the given `state`
-		$save = function ( $epsEdge ) use ( &$idx, &$result, &$outpos, &$stack ) {
-			$result = new BacktrackState( $epsEdge, $outpos, $idx );
-			$stack[] = $result;
-		};
-
 		$reset = function ()
 			use ( &$state, &$idx, &$outpos, &$result, &$stack, $emit ) {
 				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
@@ -152,6 +145,7 @@ class FST {
 				$result = $stack[count( $stack ) - 1];
 				$idx = $s->idx;
 				// Get outByte from this edge, then jump to next state
+				// (We can assert that inByte here is BYTE_EPSILON)
 				$state = $s->epsEdge + 1; /* skip over inByte */
 				$edgeOut = ord( $this->pfst[$state++] );
 				if ( $edgeOut !== self::BYTE_EPSILON ) {
@@ -188,7 +182,10 @@ class FST {
 			$edge0 = $state;
 			while ( ord( $this->pfst[$edge0] ) === self::BYTE_EPSILON ) {
 				// If this is an epsilon edge, then save a backtrack state
-				$save( $edge0 );
+				// before taking a non-deterministic edge.  If the machine
+				// fails, we'll restart at $edge0
+				$result = new BacktrackState( $edge0, $outpos, $idx );
+				$stack[] = $result;
 				$edge0 += $edgeWidth;
 				$nEdges--;
 				if ( $nEdges === 0 ) {
