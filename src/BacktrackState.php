@@ -7,10 +7,15 @@ namespace Wikimedia\LangConv;
  */
 class BacktrackState {
 	/**
-	 * Edge at which to resume execution if current execution fails.
+	 * State at which to resume execution if current execution fails.
 	 * @var int
 	 */
-	public $epsEdge;
+	public $epsState;
+	/**
+	 * Number of previous epsilon edges to skip upon resume.
+	 * @var int
+	 */
+	public $epsSkip;
 	/**
 	 * Position in the output string.
 	 * @var int
@@ -34,12 +39,14 @@ class BacktrackState {
 
 	/**
 	 * Create a new BacktrackState.
-	 * @param int $epsEdge
+	 * @param int $epsState
+	 * @param int $epsSkip
 	 * @param int $outpos
 	 * @param int $idx
 	 */
-	public function __construct( int $epsEdge, int $outpos, int $idx ) {
-		$this->epsEdge = $epsEdge;
+	public function __construct( int $epsState, int $epsSkip, int $outpos, int $idx ) {
+		$this->epsState = $epsState;
+		$this->epsSkip = $epsSkip;
 		$this->outpos = $outpos;
 		$this->idx = $idx;
 	}
