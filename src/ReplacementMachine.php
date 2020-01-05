@@ -150,7 +150,6 @@ class ReplacementMachine {
 	 * @param string $destCode destination language code
 	 * @param string $invertCode
 	 * @return DOMDocumentFragment DocumentFragment containing converted text
-	 * @suppress PhanTypeInvalidCallableArraySize
 	 */
 	public function convert( $document, $s, $destCode, $invertCode ) {
 		$machine = $this->machines[$destCode];

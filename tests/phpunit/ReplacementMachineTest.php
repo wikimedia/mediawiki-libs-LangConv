@@ -10,7 +10,7 @@ use Wikimedia\LangConv\ReplacementMachine;
  * @coversDefaultClass \Wikimedia\LangConv\ReplacementMachine
  */
 class ReplacementMachineTest extends TestCase {
-	/** @var ReplacementMachine */
+	/** @var ReplacementMachine|null */
 	private static $machine;
 
 	public static function setUpBeforeClass(): void {
