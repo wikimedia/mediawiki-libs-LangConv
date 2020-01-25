@@ -33,7 +33,7 @@
 		"mediawiki/minus-x": "0.3.2",
 		"ockcyp/covers-validator": "1.1.0",
 		"phpspec/phpspec": "^5.0",
-		"phpunit/phpunit": "^6.5",
+		"phpunit/phpunit": "^8.5",
 		"wikimedia/testing-access-wrapper": "~1.0"
 	},
 	"autoload": {
