@@ -122,22 +122,6 @@ class FST {
 		$result->partialBrackets[] = 0;
 		$epsSkip = 0;
 
-		// Add a character to the output.
-		$emit = $this->justBrackets ?
-			  function ( $code ) use ( $countCodePoints, &$result, &$outpos ) {
-				  if ( $code === self::BYTE_LBRACKET || $code === self::BYTE_RBRACKET ) {
-					  $result->partialBrackets[] = $outpos;
-				  } elseif ( $countCodePoints && $code >= 0x80 && $code < 0xC0 ) {
-					  /* Ignore UTF-8 continuation characters */
-				  } else {
-					  $outpos++;
-				  }
-			  } :
-			  function ( $code ) use ( &$result, &$outpos ) {
-				  $result->partialResult .= chr( $code );
-				  $outpos++;
-			  };
-
 		// This runs the machine until we reach the EOF state
 		while ( $state >= $initialState ) {
 			if ( $state === $initialState && count( $stack ) > 1 ) {
@@ -179,33 +163,28 @@ class FST {
 						$idx );
 					$stack[] = $result;
 				}
+				$targetEdge = $edge0;
 				$outByte = ord( $this->pfst[$edge0 + 1] );
-				Assert::invariant( $outByte !== self::BYTE_FAIL, $this->name );
-				Assert::invariant( $outByte !== self::BYTE_IDENTITY, $this->name );
-				if ( $outByte !== self::BYTE_EPSILON ) {
-					$emit( $outByte );
+				$c = self::BYTE_EPSILON;
+			} else {
+				// Binary search for an edge matching c
+				$c = $idx < $end ? ord( $input[$idx++] ) : /* pseudo-character: */ self::BYTE_EOF;
+				$minIndex = 0;
+				$maxIndex = $nEdges;
+				while ( $minIndex !== $maxIndex ) {
+					$currentIndex = ( $minIndex + $maxIndex ) >> 1;
+					$targetEdge = $edge0 + ( $edgeWidth * $currentIndex );
+					$inByte = ord( $this->pfst[$targetEdge] );
+					if ( $inByte <= $c ) {
+						$minIndex = $currentIndex + 1;
+					} else {
+						$maxIndex = $currentIndex;
+					}
 				}
-				$state = $edge0 + 2; /* skip over inByte and outByte */
-				$state = $this->readSignedV( $state ) + ( $edge0 + 2 );
-				continue;
+				// (minIndex-1).inByte <= c, and maxIndex.inByte > c
+				$targetEdge = $edge0 + ( $edgeWidth * ( $minIndex - 1 ) );
+				$outByte = $minIndex > 0 ? ord( $this->pfst[$targetEdge + 1] ) : self::BYTE_FAIL;
 			}
-			// Binary search for an edge matching c
-			$c = $idx < $end ? ord( $input[$idx++] ) : /* pseudo-character: */ self::BYTE_EOF;
-			$minIndex = 0;
-			$maxIndex = $nEdges;
-			while ( $minIndex !== $maxIndex ) {
-				$currentIndex = ( $minIndex + $maxIndex ) >> 1;
-				$targetEdge = $edge0 + ( $edgeWidth * $currentIndex );
-				$inByte = ord( $this->pfst[$targetEdge] );
-				if ( $inByte <= $c ) {
-					$minIndex = $currentIndex + 1;
-				} else {
-					$maxIndex = $currentIndex;
-				}
-			}
-			// (minIndex-1).inByte <= c, and maxIndex.inByte > c
-			$targetEdge = $edge0 + ( $edgeWidth * ( $minIndex - 1 ) );
-			$outByte = $minIndex > 0 ? ord( $this->pfst[$targetEdge + 1] ) : self::BYTE_FAIL;
 			if ( $outByte === self::BYTE_FAIL ) {
 				// FAIL!  Pop an element off the stack and reset our state.
 				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
@@ -215,16 +194,36 @@ class FST {
 				$idx = $s->idx;
 				$state = $s->epsState;
 				$epsSkip = $s->epsSkip;
-				continue;
-			}
-			if ( $outByte !== self::BYTE_EPSILON ) {
-				if ( $outByte === self::BYTE_IDENTITY ) {
-					$outByte = $c; // Copy input byte to output
+			} else {
+				// Emit $outByte: add a byte to the output.
+				if ( $outByte !== self::BYTE_EPSILON ) {
+					if ( $outByte === self::BYTE_IDENTITY ) {
+						$outByte = $c; // Copy input byte to output
+						Assert::invariant(
+							$outByte !== self::BYTE_EPSILON, "bad pFST"
+						);
+					}
+					if ( $this->justBrackets ) {
+						// Count brackets, if that's what we're doing.
+						if ( $outByte === self::BYTE_LBRACKET ||
+							 $outByte === self::BYTE_RBRACKET ) {
+							$result->partialBrackets[] = $outpos;
+						} elseif ( $countCodePoints &&
+								   $outByte >= 0x80 && $outByte < 0xC0 ) {
+							/* Ignore UTF-8 continuation characters */
+						} else {
+							$outpos++;
+						}
+					} else {
+						// Add this byte to the partial result
+						$result->partialResult .= chr( $outByte );
+						$outpos++;
+					}
 				}
-				$emit( $outByte );
+				// Done emitting, go on to the next state.
+				$state = $targetEdge + 2; // skip over inByte/outByte
+				$state = $this->readSignedV( $state ) + ( $targetEdge + 2 );
 			}
-			$state = $targetEdge + 2; // skip over inByte/outByte
-			$state = $this->readSignedV( $state ) + ( $targetEdge + 2 );
 		}
 
 		// Ok, process the final state and return something.
