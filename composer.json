@@ -54,10 +54,11 @@
 			"phpcs -p -s",
 			"minus-x check .",
 			"covers-validator",
-			"phpunit",
+			"@phpunit",
 			"phpspec run -v --ansi",
 			"@phan"
 		],
+		"phpunit": "phpunit",
 		"fix": [
 			"minus-x fix .",
 			"phpcbf"
