@@ -80,8 +80,12 @@ class FST {
 		return $nr;
 	}
 
-	// Read zig-zag encoded variable length integers
-	// (See [[:en:Variable-length_quantity#Zigzag_encoding]])
+	/**
+	 * Read zig-zag encoded variable length integers
+	 * (See [[:en:Variable-length_quantity#Zigzag_encoding]])
+	 * @param int &$state
+	 * @return int
+	 */
 	private function readUnsignedV( int &$state ): int {
 		$b = ord( $this->pfst[$state++] );
 		$val = $b & 127;
@@ -93,6 +97,10 @@ class FST {
 		return $val;
 	}
 
+	/**
+	 * @param int &$state
+	 * @return int
+	 */
 	private function readSignedV( int &$state ): int {
 		$v = $this->readUnsignedV( $state );
 		if ( $v & 1 ) { // sign bit is in LSB
