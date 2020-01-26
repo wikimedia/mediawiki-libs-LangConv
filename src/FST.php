@@ -138,17 +138,6 @@ class FST {
 				  $outpos++;
 			  };
 
-		$reset = function ()
-			use ( &$state, &$epsSkip, &$idx, &$outpos, &$result, &$stack, $emit ) {
-				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
-				$s = array_pop( $stack );
-				$outpos = $s->outpos;
-				$result = $stack[count( $stack ) - 1];
-				$idx = $s->idx;
-				$state = $s->epsState;
-				$epsSkip = $s->epsSkip;
-		};
-
 		// This runs the machine until we reach the EOF state
 		while ( $state >= $initialState ) {
 			if ( $state === $initialState && count( $stack ) > 1 ) {
@@ -218,7 +207,14 @@ class FST {
 			$targetEdge = $edge0 + ( $edgeWidth * ( $minIndex - 1 ) );
 			$outByte = $minIndex > 0 ? ord( $this->pfst[$targetEdge + 1] ) : self::BYTE_FAIL;
 			if ( $outByte === self::BYTE_FAIL ) {
-				$reset();
+				// FAIL!  Pop an element off the stack and reset our state.
+				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
+				$s = array_pop( $stack );
+				$outpos = $s->outpos;
+				$result = $stack[count( $stack ) - 1];
+				$idx = $s->idx;
+				$state = $s->epsState;
+				$epsSkip = $s->epsSkip;
 				continue;
 			}
 			if ( $outByte !== self::BYTE_EPSILON ) {
