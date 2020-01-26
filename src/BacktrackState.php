@@ -7,7 +7,7 @@ namespace Wikimedia\LangConv;
  */
 class BacktrackState {
 	/**
-	 * Edge at which to resume execution.
+	 * Edge at which to resume execution if current execution fails.
 	 * @var int
 	 */
 	public $epsEdge;
