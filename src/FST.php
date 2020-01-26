@@ -117,9 +117,10 @@ class FST {
 		$state = $initialState;
 		$idx = $start;
 		$outpos = 0;
-		$stack = [ new BacktrackState( 0, 0, 0 ) ];
+		$stack = [ new BacktrackState( 0, 0, 0, 0 ) ];
 		$result = $stack[0];
 		$result->partialBrackets[] = 0;
+		$epsSkip = 0;
 
 		// Add a character to the output.
 		$emit = $this->justBrackets ?
@@ -138,22 +139,14 @@ class FST {
 			  };
 
 		$reset = function ()
-			use ( &$state, &$idx, &$outpos, &$result, &$stack, $emit ) {
+			use ( &$state, &$epsSkip, &$idx, &$outpos, &$result, &$stack, $emit ) {
 				Assert::invariant( count( $stack ) > 1, $this->name ); # catch underflow
 				$s = array_pop( $stack );
 				$outpos = $s->outpos;
 				$result = $stack[count( $stack ) - 1];
 				$idx = $s->idx;
-				// Get outByte from this edge, then jump to next state
-				// (We can assert that inByte here is BYTE_EPSILON)
-				$state = $s->epsEdge + 1; /* skip over inByte */
-				$edgeOut = ord( $this->pfst[$state++] );
-				if ( $edgeOut !== self::BYTE_EPSILON ) {
-					$emit( $edgeOut );
-				}
-				$edgeDest = $state;
-				$edgeDest += $this->readSignedV( $state );
-				$state = $edgeDest;
+				$state = $s->epsState;
+				$epsSkip = $s->epsSkip;
 		};
 
 		// This runs the machine until we reach the EOF state
@@ -172,26 +165,40 @@ class FST {
 					}
 				}
 			}
+			$saveState = $state;
 			$edgeWidth = $this->readUnsignedV( $state );
 			$nEdges = $this->readUnsignedV( $state );
-			if ( $nEdges === 0 ) {
-				$reset();
-				continue;
-			}
+			Assert::invariant( $nEdges > 0, $this->name );
+			$saveEdges = $nEdges;
 			// Read first edge to see if there are any epsilon edges
 			$edge0 = $state;
-			while ( ord( $this->pfst[$edge0] ) === self::BYTE_EPSILON ) {
-				// If this is an epsilon edge, then save a backtrack state
-				// before taking a non-deterministic edge.  If the machine
-				// fails, we'll restart at $edge0
-				$result = new BacktrackState( $edge0, $outpos, $idx );
-				$stack[] = $result;
-				$edge0 += $edgeWidth;
-				$nEdges--;
-				if ( $nEdges === 0 ) {
-					$reset();
-					continue 2;
+			if ( $epsSkip > 0 ) {
+				$edge0 += ( $epsSkip * $edgeWidth );
+				$nEdges -= $epsSkip;
+				$epsSkip = 0;
+			}
+			if ( ord( $this->pfst[$edge0] ) === self::BYTE_EPSILON ) {
+				// If this is an epsilon edge, take it immediately!
+				// But save a backtrack state since this non-deterministic
+				// edge may fail.  If it does, we'll restart at the next
+				// edge in this state.
+				if ( $nEdges > 1 ) {
+					$result = new BacktrackState(
+						$saveState,
+						( $saveEdges - $nEdges ) + 1,
+						$outpos,
+						$idx );
+					$stack[] = $result;
 				}
+				$outByte = ord( $this->pfst[$edge0 + 1] );
+				Assert::invariant( $outByte !== self::BYTE_FAIL, $this->name );
+				Assert::invariant( $outByte !== self::BYTE_IDENTITY, $this->name );
+				if ( $outByte !== self::BYTE_EPSILON ) {
+					$emit( $outByte );
+				}
+				$state = $edge0 + 2; /* skip over inByte and outByte */
+				$state = $this->readSignedV( $state ) + ( $edge0 + 2 );
+				continue;
 			}
 			// Binary search for an edge matching c
 			$c = $idx < $end ? ord( $input[$idx++] ) : /* pseudo-character: */ self::BYTE_EOF;
