@@ -1,3 +1,6 @@
+# wikimedia-langconv 0.3.3 (2020-01-28)
+* Performance improvements to PHP port.
+
 # wikimedia-langconv 0.3.2 (2019-12-12)
 * Fix crasher in PHP port.
 
