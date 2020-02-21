@@ -21,9 +21,7 @@
  * @ingroup MaintenanceLanguage
  */
 
-require_once __DIR__ . '/../Maintenance.php';
-
-use Wikimedia\Assert\Assert;
+require_once __DIR__ . '/Maintenance.php';
 
 /**
  * Dumps the conversion exceptions table from ZhConversion.php
@@ -36,18 +34,29 @@ class DumpZh extends Maintenance {
 		$this->addDescription( 'Dump zh exceptions' );
 	}
 
+	/** @inheritDoc */
 	public function getDbType() {
 		return Maintenance::DB_NONE;
 	}
 
-	public function emitFomaRepl( $name, $mapArray, $unicodeSplit = false ) {
+	/**
+	 * Emit a foma-style definition to standard out.
+	 * @param string $name The name of the foma definition
+	 * @param array<string,string> $mapArray An array with keys mapping
+	 *   "from" and values mapping "to"  strings; as would be provided to
+	 *   `strtr`.
+	 * @param bool $unicodeSplit Whether to encode each byte as UTF-8.
+	 */
+	public function emitFomaRepl( string $name, array $mapArray, bool $unicodeSplit = false ): void {
 		$first = true;
 		echo( "define $name [\n" );
 		foreach ( $mapArray as $from => $to ) {
-			if ( !$first ) { echo( " |\n" );
-   }
+			if ( !$first ) {
+				echo( " |\n" );
+			}
 			if ( $unicodeSplit ) {
-				echo( "  [ " . $this->utf8split( $from, true ) . " ] : [ " . $this->utf8split( $to, true ) . " ]" );
+				echo( "  [ " . self::utf8split( $from, true ) . " ] : " .
+					  "[ " . self::utf8split( $to, true ) . " ]" );
 			} else {
 				echo( "  {" . $from . "} : {" . $to . "}" );
 			}
@@ -56,40 +65,27 @@ class DumpZh extends Maintenance {
 		echo( "\n];\n" );
 	}
 
-	public function emitFomaRepl2( $name, $mapArray ) {
-		$first = true;
-		foreach ( $mapArray as $from => $to ) {
-			Assert::invariant( strpos( $from, ' ' ) === false, "Space in from: $from" );
-			Assert::invariant( strpos( $to, ' ' ) === false, "Space in to: $to" );
-			echo( "$from\n" );
-			echo( "$to\n" );
-		}
-	}
-
-	function utf8split( $str, $quote = false ) {
+	/**
+	 * Convert a string into a sequence of tokens corresponding to the bytes
+	 * in the UTF-8 representation of the string.
+	 * @param string $str
+	 * @param bool $quote Should the tokens be enclosed in quotes
+	 * @return string
+	 */
+	private static function utf8split( string $str, bool $quote = false ): string {
 		$a = str_split( $str, 1 );
 		$r = [];
 		for ( $i = 0; $i < count( $a ); $i++ ) {
 			$c = sprintf( "%2X", ord( $a[$i] ) );
-			if ( $quote ) { $c = '"' . $c . '"';
-   }
+			if ( $quote ) {
+				$c = '"' . $c . '"';
+			}
 			$r[] = $c;
 		}
 		return implode( ' ', $r );
 	}
 
-	public function emitFomaRepl3( $name, $mapArray ) {
-		$first = true;
-		foreach ( $mapArray as $from => $to ) {
-			Assert::invariant( strpos( $from, ' ' ) === false, "Space in from: $from" );
-			Assert::invariant( strpos( $to, ' ' ) === false, "Space in to: $to" );
-			$from = $this->utf8split( $from );
-			$to = $this->utf8split( $to );
-			echo( "$from\n" );
-			echo( "$to\n" );
-		}
-	}
-
+	/** @inheritDoc */
 	public function execute() {
 		$zh = Language::factory( 'zh' );
 		$converter = $zh->getConverter();
@@ -97,12 +93,14 @@ class DumpZh extends Maintenance {
 		$converter->autoConvertToAllVariants( "xyz" );
 		# XXX WE ALSO LOAD ADDITIONAL CONVERSIONS FROM WIKI PAGES!
 		foreach ( $converter->mTables as $var => $table ) {
-			if ( !preg_match( '/^zh/', $var ) ) { continue;
-   }
-			if ( count( $table->getArray() ) === 0 ) { continue;
-   }
+			if ( !preg_match( '/^zh/', $var ) ) {
+				continue;
+			}
+			if ( count( $table->getArray() ) === 0 ) {
+				continue;
+			}
 			$name = "TABLE'" . preg_replace( '/-/', "'", strtoupper( $var ) );
-			#if ($var !== 'zh-cn') continue;
+			# if ($var !== 'zh-cn') continue;
 			$this->emitFomaRepl( $name, $table->getArray(), true );
 		}
 	}

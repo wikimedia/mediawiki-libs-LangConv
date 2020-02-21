@@ -21,17 +21,16 @@
  * @ingroup MaintenanceLanguage
  */
 
-require_once __DIR__ . '/../Maintenance.php';
+require_once __DIR__ . '/Maintenance.php';
+require_once __DIR__ . '/BadRegexException.php';
+require_once __DIR__ . '/BadEscapeException.php';
 
 use Wikimedia\Assert\Assert;
 
-class BadRegexException extends Exception {
-}
-class BadEscapeException extends BadRegexException {
-}
-
 /**
  * Dumps the conversion exceptions table from CrhExceptions.php
+ * as foma-style regular expressions.  This is used to generate
+ * large portions of fst/crh-exceptions.foma
  *
  * @ingroup MaintenanceLanguage
  */
@@ -41,56 +40,88 @@ class DumpCrh extends Maintenance {
 		$this->addDescription( 'Dump crh exceptions' );
 	}
 
+	/**
+	 * Does not write to the DB.
+	 * @inheritDoc
+	 */
 	public function getDbType() {
 		return Maintenance::DB_NONE;
 	}
 
-	function peek( $str ) {
-		if ( $str == '' ) { return '';
-  }
+	/**
+	 * Helper function for ad-hoc regex parser.
+	 * @param string $str The input string
+	 * @return string The next character
+	 */
+	private static function peek( string $str ): string {
+		if ( $str == '' ) {
+			return '';
+		}
 		return mb_substr( $str, 0, 1 );
 	}
 
-	function eat( &$str, $c = null ) {
-		Assert::invariant( $c === null || $this->peek( $str ) === $c, "Ate something unexpected." );
+	/**
+	 * Helper function for ad-hoc regex parser.
+	 * @param string &$str The input string
+	 * @param string|null $c The character expected, or null for any.
+	 * @return string The next character
+	 */
+	private static function eat( string &$str, ?string $c = null ): string {
+		Assert::invariant( $c === null || self::peek( $str ) === $c, "Ate something unexpected." );
 		$str = mb_substr( $str, 1 );
-		return $this->peek( $str );
+		return self::peek( $str );
 	}
 
-	function translateRegexClass( &$str ) {
-		$peek = $this->peek( $str );
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does character classes.
+	 * @param string &$str The input string (PHP regex)
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegexClass( string &$str ): string {
+		$peek = self::peek( $str );
 		$not = false;
 		$result = '';
 		if ( $peek === '^' ) {
 			$not = true;
-			$peek = $this->eat( $str, '^' );
+			$peek = self::eat( $str, '^' );
 		}
 		while ( $peek !== ']' ) {
-			$first = mb_ord( $this->translateRegexChar( $str, false ) );
-			$peek = $this->peek( $str );
+			$first = mb_ord( self::translateRegexChar( $str, false ) );
+			$peek = self::peek( $str );
 			if ( $peek !== '-' ) {
 				$last = $first;
 			} else {
-				$this->eat( $str, '-' );
-				$last = mb_ord( $this->translateRegexChar( $str, false ) );
-				$peek = $this->peek( $str );
+				self::eat( $str, '-' );
+				$last = mb_ord( self::translateRegexChar( $str, false ) );
+				$peek = self::peek( $str );
 			}
 			for ( $i = $first; $i <= $last; $i++ ) {
-				if ( $result !== '' ) { $result .= "|";
-	   }
+				if ( $result !== '' ) {
+					$result .= "|";
+				}
 				$result .= "{" . mb_chr( $i ) . "}";
 			}
 		}
-		if ( $not ) { return "\\[$result]";
-  }
+		if ( $not ) {
+			return "\\[$result]";
+		}
 		return $result;
 	}
 
-	function translateRegexChar( &$str, $escape = true ) {
-		$peek = $this->peek( $str );
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does individual characters (including backslash escapes)
+	 * @param string &$str The input string (PHP regex)
+	 * @param bool $escape Whether escape sequences are permitted
+	 *    (aka, escape sequences not permitted in character classes)
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegexChar( string &$str, bool $escape = true ): string {
+		$peek = self::peek( $str );
 		if ( $peek == '\\' ) {
-			$c = $this->eat( $str, '\\' );
-			$this->eat( $str, $c );
+			$c = self::eat( $str, '\\' );
+			self::eat( $str, $c );
 			# XXX check that $c is a reasonable escape sequence, not
 			# something special like \w \b etc.
 			if ( $c === '.' ) {
@@ -101,97 +132,144 @@ class DumpCrh extends Maintenance {
 				throw new BadEscapeException( $c );
 			}
 		} else {
-			$this->eat( $str );
+			self::eat( $str );
 			return $escape ? ( '{' . $peek . '}' ) : $peek;
 		}
 	}
 
-	function translateRegexBase( &$str ) {
-		$peek = $this->peek( $str );
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does "base" expressions (parenthesized subexpressions,
+	 * character classes, or individual characters).
+	 * @param string &$str The input string (PHP regex)
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegexBase( string &$str ): string {
+		$peek = self::peek( $str );
 		if ( $peek == '(' ) {
-			$this->eat( $str, '(' );
-			$r = $this->translateRegex( $str );
-			$this->eat( $str, ')' );
+			self::eat( $str, '(' );
+			$r = self::translateRegex( $str );
+			self::eat( $str, ')' );
 			return "[ $r ]";
 		} elseif ( $peek == '[' ) {
-			$this->eat( $str, '[' );
-			$r = $this->translateRegexClass( $str );
-			$this->eat( $str, ']' );
+			self::eat( $str, '[' );
+			$r = self::translateRegexClass( $str );
+			self::eat( $str, ']' );
 			return "[$r]";
 		} else {
 			# XXX figure out if this needs to be escaped further
-			return $this->translateRegexChar( $str, true );
+			return self::translateRegexChar( $str, true );
 		}
 	}
 
-	function translateRegexFactor( &$str ) {
-		$base = $this->translateRegexBase( $str );
-		$peek = $this->peek( $str );
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does "factor" expressions (a base expression followed by
+	 * a multiplicity operator such as * + ?).
+	 * @param string &$str The input string (PHP regex)
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegexFactor( string &$str ): string {
+		$base = self::translateRegexBase( $str );
+		$peek = self::peek( $str );
 		while ( $peek == '*' || $peek == '+' || $peek == '?' ) {
-			$this->eat( $str, $peek );
+			self::eat( $str, $peek );
 			if ( $peek == '?' ) {
 				$base = "(" . $base . ")";
 			} else {
 				$base .= $peek;
 			}
-			$peek = $this->peek( $str );
+			$peek = self::peek( $str );
 		}
 		return $base;
 	}
 
-	function translateRegexTerm( &$str, $noParens = false ) {
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does "term" expressions (a list of factors).
+	 * @param string &$str The input string (PHP regex)
+	 * @param bool $noParens Whether to stop parsing as soon as an open paren
+	 *   is seen.
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegexTerm( string &$str, bool $noParens = false ): string {
 		$factor = '';
-		$peek = $this->peek( $str );
+		$peek = self::peek( $str );
 		while ( $peek != '' && $peek != ')' && $peek != '|' ) {
-			if ( $noParens && $peek === '(' ) { break;
-   }
-			$nextFactor = $this->translateRegexFactor( $str );
-			if ( $factor != '' ) { $factor .= " ";
-   }
+			if ( $noParens && $peek === '(' ) {
+				break;
+			}
+			$nextFactor = self::translateRegexFactor( $str );
+			if ( $factor != '' ) {
+				$factor .= " ";
+			}
 			$factor .= $nextFactor;
-			$peek = $this->peek( $str );
+			$peek = self::peek( $str );
 		}
 		return $factor;
 	}
 
-	function translateRegex( &$str, $noParens = false ) {
-		$term = $this->translateRegexTerm( $str, $noParens );
-		if ( $this->peek( $str ) == '|' ) {
-			$this->eat( $str, '|' );
-			$term2 = $this->translateRegex( $str, $noParens );
+	/**
+	 * Ad-hoc regex parser to translate from PHP regexes to foma regexes.
+	 * This does "term" expressions separated by '|'.
+	 * @param string &$str The input string (PHP regex)
+	 * @param bool $noParens Whether to stop parsing as soon as an open paren
+	 *   is seen.
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	private static function translateRegex( string &$str, bool $noParens = false ): string {
+		$term = self::translateRegexTerm( $str, $noParens );
+		if ( self::peek( $str ) == '|' ) {
+			self::eat( $str, '|' );
+			$term2 = self::translateRegex( $str, $noParens );
 			return $term . " | " . $term2;
 		}
 		return $term;
 	}
 
-	function translate( $s ) {
-		return $this->translateRegex( $s );
+	/**
+	 * Translate from PHP regexes to foma regexes.
+	 * @param string $s The input string (PHP regex)
+	 * @return string The translated regexp (FOMA regex)
+	 */
+	public static function translate( string $s ): string {
+		return self::translateRegex( $s );
 	}
 
-	function translateSplit( $str ) {
+	/**
+	 * Handle translation of a regex with a parenthesized subexpression.
+	 * @param string $str
+	 * @return string[]
+	 */
+	private static function translateSplit( string $str ): array {
 		$r = [ '' ];
-		$c = $this->peek( $str );
+		$c = self::peek( $str );
 		while ( $c !== '' ) {
 			if ( $c === '(' ) {
-				$r[] = $this->translateRegexBase( $str );
+				$r[] = self::translateRegexBase( $str );
 				$r[] = '';
 			} else {
 				if ( $r[count( $r ) - 1] != '' ) { $r[count( $r ) - 1] .= " ";
 	   }
-				$r[count( $r ) - 1] .= $this->translateRegex( $str, true );
+				$r[count( $r ) - 1] .= self::translateRegex( $str, true );
 			}
-			$c = $this->peek( $str );
+			$c = self::peek( $str );
 		}
 		return $r;
 	}
 
-	function dollarSplit( $str ) {
+	/**
+	 * Split replacement string around dollar expression.
+	 * @param string $str
+	 * @return string[]
+	 */
+	private static function dollarSplit( string $str ): array {
 		$i = mb_ord( '1' );
 		$r = [ '' ];
-		$c = $this->peek( $str );
+		$c = self::peek( $str );
 		while ( $c !== '' ) {
 			if ( $c === '$' ) {
-				$c = $this->eat( $str, '$' );
+				$c = self::eat( $str, '$' );
 				Assert::invariant( $c === mb_chr( $i ), "replacements out of order" );
 				$i++;
 				$r[] = '_';
@@ -199,31 +277,52 @@ class DumpCrh extends Maintenance {
 			} else {
 				$r[count( $r ) - 1] .= $c;
 			}
-			$c = $this->eat( $str );
+			$c = self::eat( $str );
 		}
 		return $r;
 	}
 
-	public function emitFomaRepl( $name, $mapArray ) {
+	/**
+	 * Emit a foma-style definition to stdout with the given name based on
+	 * the replacement array, as would be provided to strtr.
+	 * (Note that strtr does "longest possible" replacement.)
+	 * @param string $name The name of the definition in the foma output
+	 * @param array<string,string> $mapArray An array whose keys are
+	 *   strings and whose values are the desired replacement strings.
+	 */
+	public function emitFomaRepl( string $name, array $mapArray ): void {
 		$first = true;
 		echo( "define $name [\n" );
 		foreach ( $mapArray as $from => $to ) {
-			if ( !$first ) { echo( " ,,\n" );
-   }
+			if ( !$first ) {
+				echo( " ,,\n" );
+			}
 			echo( "  {" . $from . "} @-> {" . $to . "}" );
 			$first = false;
 		}
 		echo( "\n];\n" );
 	}
 
-	public function emitFomaRegex( $name, $patArray ) {
-		# break up large arrays to avoid segfaults in foma
+	/**
+	 * Emit a foma-style definition to stdout with the given name based on
+	 * the regex replacement array, as would be provided to preg_replace()
+	 * with array arguments, except that the array is provides as key-value
+	 * mappings from regexp to replacement (preg_replace takes two parallel
+	 * arrays).
+	 * (Note that preg_replace doesn't do "longest possible" replacement;
+	 * instead it processes the regexps strictly in order.)
+	 * @param string $name The name of the definition in the foma output
+	 * @param array<string,string> $patArray An array whose keys are
+	 *   regexps and whose values are the desired replacement strings.
+	 */
+	public function emitFomaRegex( string $name, array $patArray ): void {
+		# break up large arrays to avoid segfaults in foma (!)
 		if ( count( $patArray ) > 100 ) {
 			$r = [];
 			foreach ( array_chunk( $patArray, 100, true ) as $chunk ) {
 				$n = $name . "'" . ( count( $r ) + 1 );
 				$r[] = "$n(br)";
-				$this->emitFomaRegex( $n, $chunk );
+				self::emitFomaRegex( $n, $chunk );
 			}
 			echo( "define $name(br) " . implode( ' .o. ', $r ) . ";\n" );
 			return;
@@ -248,7 +347,7 @@ class DumpCrh extends Maintenance {
 					$first = true;
 					continue;
 				}
-				$to = $this->dollarSplit( $to );
+				$to = self::dollarSplit( $to );
 				# Convert identical parts to context
 				for ( $i = 0; $i < count( $from ); $i += 2 ) {
 					if ( $from[$i] == ( '{' . $to[$i] . '}' ) ) {
@@ -316,10 +415,11 @@ class DumpCrh extends Maintenance {
 		echo( "\n];\n" );
 	}
 
+	/** @inheritDoc */
 	public function execute() {
 		$crh = Language::factory( 'crh' );
 		$converter = $crh->getConverter();
-		$converter->loadExceptions();
+
 		$this->emitFomaRepl( "CRH'LATN'EXCEPTIONS", $converter->mCyrl2LatnExceptions );
 		$this->emitFomaRepl( "CRH'CYRL'EXCEPTIONS", $converter->mLatn2CyrlExceptions );
 		# regular expressions
