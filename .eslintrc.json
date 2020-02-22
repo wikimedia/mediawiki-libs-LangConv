@@ -1,5 +1,9 @@
 {
-  "extends": "node-services",
+  "root": true,
+  "extends": [
+    "wikimedia/node",
+    "wikimedia/language/es6"
+  ],
   "rules": {
     // These are somewhat agreed upon explicit divergences.
     "indent": [2, "tab", {
@@ -41,6 +45,6 @@
 
     "no-buffer-constructor": 1,
 
-    "jsdoc/newline-after-description": [0, "never"],
+    "jsdoc/newline-after-description": [0, "never"]
   }
 }
