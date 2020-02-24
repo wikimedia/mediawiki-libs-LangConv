@@ -31,6 +31,8 @@ class GenReplFst {
 	private $alphabet;
 	/** @var array */
 	private $workQueue;
+	/** @var bool */
+	private $alphabetIncludesAllContinuations;
 
 	/**
 	 * Add each letter in the given word to our alphabet.
@@ -176,8 +178,10 @@ class GenReplFst {
 			}
 		}
 		// "anything else"
-		$n = $this->emit( $from, MutableFST::EPSILON, $lastMatch ?? '' );
-		$this->queueEdge( $n, $seen, true/*identity at the end*/ );
+		if ( $this->alphabetIncludesAllContinuations ? ( $utf8state === 0 ) : true ) {
+			$n = $this->emit( $from, MutableFST::EPSILON, $lastMatch ?? '' );
+			$this->queueEdge( $n, $seen, true/*identity at the end*/ );
+		}
 	}
 
 	/**
@@ -362,13 +366,29 @@ class GenReplFst {
 	 * Convert the given $replacementTable (strtr-style) to an FST.
 	 * @param string $name
 	 * @param array<string,string> $replacementTable
+	 * @param bool $includeContinuations Whether to force the alphabet to
+	 *   include all 64 possible UTF-8 continuation characters.
 	 */
-	public function __construct( string $name, array $replacementTable ) {
+	public function __construct(
+		string $name, array $replacementTable, bool $includeContinuations = true
+	) {
 		$alphabet = [];
 		foreach ( $replacementTable as $from => $to ) {
 			self::addAlphabet( $alphabet, $from );
 			self::addAlphabet( $alphabet, $to );
 			self::addEntry( $this->prefixTree, $from, 0, 0, $to );
+		}
+		if ( $includeContinuations ) {
+			for ( $c = 0x80; $c <= 0xBF; $c++ ) {
+				$alphabet[$c] = true;
+			}
+		}
+		$this->alphabetIncludesAllContinuations = true;
+		for ( $c = 0x80; $c <= 0xBF; $c++ ) {
+			if ( empty( $alphabet[$c] ) ) {
+				$this->alphabetIncludesAllContinuations = false;
+				break;
+			}
 		}
 		$this->alphabet = array_keys( $alphabet );
 		sort( $this->alphabet, SORT_NUMERIC );
@@ -376,10 +396,14 @@ class GenReplFst {
 		$this->fst = new MutableFST( array_map( function ( $n ) {
 			return self::byteToHex( $n );
 		}, $this->alphabet ) );
-		# $this->fst->getStartState()->isFinal = true;
 		$this->anythingState = $this->fst->newState();
+		$continuationState = $this->fst->newState();
 		$this->anythingState->addEdge(
 			MutableFST::IDENTITY, MutableFST::IDENTITY,
+			$continuationState
+		);
+		$continuationState->addEdge(
+			MutableFST::EPSILON, MutableFST::EPSILON,
 			$this->fst->getStartState()
 		);
 		// The anything state could also be the end of the string
@@ -393,15 +417,24 @@ class GenReplFst {
 			$endState
 		);
 
-		// our first state must echo all continuation characters, since
-		// the anythingState transitions there and we don't know what
-		// utf8 state IDENTITY will leave us in. (The characters not in
-		// our alphabet could consiste of 1-/2-/3-/4-byte sequences.)
-		foreach ( self::utf8alphabet( 1/*continuation chars*/ ) as $c ) {
-			$this->fst->getStartState()->addEdge(
-				self::byteToHex( $c ), MutableFST::IDENTITY,
-				$this->fst->getStartState()
-			);
+		if ( $this->alphabetIncludesAllContinuations ) {
+			foreach ( self::utf8alphabet( 1/*continuation chars*/ ) as $c ) {
+				$continuationState->addEdge(
+					self::byteToHex( $c ), MutableFST::IDENTITY,
+					$continuationState
+				);
+			}
+		} else {
+			// our first state must echo all continuation characters, since
+			// the anythingState transitions there and we don't know what
+			// utf8 state IDENTITY will leave us in. (The characters not in
+			// our alphabet could consiste of 1-/2-/3-/4-byte sequences.)
+			foreach ( self::utf8alphabet( 1/*continuation chars*/ ) as $c ) {
+				$this->fst->getStartState()->addEdge(
+					self::byteToHex( $c ), MutableFST::IDENTITY,
+					$this->fst->getStartState()
+				);
+			}
 		}
 
 		// Create states corresponding to prefix tree nodes
