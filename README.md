@@ -1,7 +1,5 @@
 # wikimedia-langconv
 
-[![dependency status][3]][4] [![dev dependency status][5]][6]
-
 Finite-State Transducer implementation of Wikimedia LanguageConverter
 
 ## Install
@@ -39,8 +37,3 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-[3]: https://david-dm.org/wikimedia/langconv/status.svg
-[4]: https://david-dm.org/wikimedia/langconv
-[5]: https://david-dm.org/wikimedia/langconv/dev-status.svg
-[6]: https://david-dm.org/wikimedia/langconv#info=devDependencies
