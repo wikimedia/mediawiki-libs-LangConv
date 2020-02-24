@@ -2,6 +2,8 @@
 
 namespace Wikimedia\LangConv\Construct;
 
+use Wikimedia\Assert\Assert;
+
 /**
  * GENerate a REPLacement string FST.
  *
@@ -16,8 +18,10 @@ class GenReplFst {
 	private const EMIT = '*EMIT*';
 	// correlation of tree nodes to state machine states
 	private const STATE = '*STATE*';
+	// UTF-8 decode state: 0=first byte, 1/2/3=bytes remaining in char
+	private const UTF8STATE = '*UTF8STATE*';
 
-	/** @var array<int|string,string|array> */
+	/** @var array<int|string,int|string|array> */
 	private $prefixTree = [];
 	/** @var MutableFST */
 	private $fst;
@@ -45,19 +49,96 @@ class GenReplFst {
 	 * @param array<int|string,string|array> &$tree
 	 * @param string $from
 	 * @param int $index
+	 * @param int $utf8state 0=first byte, 1/2/3 = bytes remaining in char
 	 * @param string $to
 	 */
-	private static function addEntry( array &$tree, string $from, int $index, string $to ): void {
+	private static function addEntry(
+		array &$tree, string $from, int $index, int $utf8state, string $to
+	): void {
 		$c = ord( $from[$index] );
 		if ( !isset( $tree[$c] ) ) {
 			$tree[$c] = [];
 		}
+		if ( !isset( $tree[self::UTF8STATE] ) ) {
+			$tree[self::UTF8STATE] = $utf8state;
+		}
+		Assert::invariant(
+			$tree[self::UTF8STATE] === $utf8state, "Should never happen"
+		);
 		$nextIndex = $index + 1;
+		$nextUtf8State = self::nextUtf8State( $utf8state, $c );
 		if ( $nextIndex < strlen( $from ) ) {
-			self::addEntry( $tree[$c], $from, $nextIndex, $to );
+			self::addEntry( $tree[$c], $from, $nextIndex, $nextUtf8State, $to );
 		} else {
+			Assert::invariant( $nextUtf8State === 0, "Bad UTF-8 in input" );
+			$tree[$c][self::UTF8STATE] = $nextUtf8State;
 			$tree[$c][self::END_OF_STRING] = $to;
 		}
+	}
+
+	/**
+	 * Return the next UTF-8 state, given the current state and the
+	 * current character.
+	 * @param int $utf8state 0=first byte, 1/2/3 = bytes remaining in char
+	 * @param int $c The current character
+	 * @return int The next UTF-8 state
+	 */
+	private static function nextUtf8State( int $utf8state, int $c ): int {
+		if ( $utf8state === 0 ) {
+			if ( $c <= 0x7F ) {
+				return 0;
+			} elseif ( $c <= 0xDF ) {
+				Assert::invariant( $c >= 0xC0, "Bad UTF-8 in input" );
+				return 1;
+			} elseif ( $c <= 0xEF ) {
+				Assert::invariant( $c >= 0xE0, "Bad UTF-8 in input" );
+				return 2;
+			} elseif ( $c <= 0xF7 ) {
+				Assert::invariant( $c >= 0xF0, "Bad UTF-8 in input" );
+				return 3;
+			}
+		} else {
+			return $utf8state - 1;
+		}
+		// @phan-suppress-next-line PhanImpossibleCondition
+		Assert::invariant( false, "Bad UTF-8 in input" );
+	}
+
+	/**
+	 * Return the subset of the given alphabet appropriate for the current
+	 * UTF-8 state.
+	 * @param int $utf8state 0=first byte, 1/2/3 = bytes remaining in char
+	 * @return \Generator<int>
+	 */
+	private function utf8alphabet( int $utf8state ) {
+		foreach ( $this->alphabet as $c ) {
+			if ( $c >= 0x80 && $c <= 0xBF ) {
+				// UTF-8 continuation character
+				if ( $utf8state !== 0 ) {
+					yield $c;
+				}
+			} else {
+				if ( $utf8state === 0 ) {
+					yield $c;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Split a given string into the first utf8 char, and "everything else".
+	 * @param string $s
+	 * @return string[]
+	 */
+	private static function splitFirstUtf8Char( string $s ) {
+		$utf8state = 0;
+		$i = 0;
+		do {
+			$c = ord( $s[$i] );
+			$utf8state = self::nextUtf8State( $utf8state, $c );
+			$i += 1;
+		} while ( $utf8state !== 0 && $i < strlen( $s ) );
+		return [ substr( $s, 0, $i ), substr( $s, $i ) ];
 	}
 
 	/**
@@ -70,12 +151,13 @@ class GenReplFst {
 	 */
 	private function buildState( State $from, array &$tree, ?string $lastMatch, string $seen ): void {
 		$tree[self::STATE] = $from;
+		$utf8state = $tree[self::UTF8STATE];
 
 		if ( isset( $tree[self::END_OF_STRING] ) ) {
 			$lastMatch = $tree[self::END_OF_STRING];
 			$seen = '';
 		}
-		foreach ( $this->alphabet as $c ) {
+		foreach ( $this->utf8alphabet( $utf8state ) as $c ) {
 			$nextSeen = $seen . chr( $c );
 			if ( isset( $tree[$c] ) ) {
 				$n = $this->fst->newState();
@@ -88,8 +170,9 @@ class GenReplFst {
 				// to the new state.
 				$this->queueEdge( $n, $nextSeen, false );
 			} else {
-				$n = $this->emit( $from, self::byteToHex( $c ), $nextSeen[0] );
-				$this->queueEdge( $n, substr( $nextSeen, 1 ), false );
+				[ $firstChar, $rest ] = self::splitFirstUtf8Char( $nextSeen );
+				$n = $this->emit( $from, self::byteToHex( $c ), $firstChar );
+				$this->queueEdge( $n, $rest, false );
 			}
 		}
 		// "anything else"
@@ -129,6 +212,11 @@ class GenReplFst {
 	 * @param bool $endsWithIdentity
 	 */
 	private function queueEdge( State $from, string $input, bool $endsWithIdentity ): void {
+		// Every $input string should start at utf8state 0
+		if ( strlen( $input ) > 0 ) {
+			$c = ord( $input );
+			Assert::invariant( $c < 0x80 || $c >= 0xC0, "Bad UTF-8" );
+		}
 		$this->workQueue[] = [ $from, $input, $endsWithIdentity ];
 	}
 
@@ -156,6 +244,7 @@ class GenReplFst {
 			"endsWithIdentity $endsWithIdentity"
 		);
 		*/
+		$utf8state = $tree[self::UTF8STATE];
 		if ( isset( $tree[self::END_OF_STRING] ) ) {
 			$lastMatch = $tree[self::END_OF_STRING];
 			$seen = '';
@@ -168,8 +257,9 @@ class GenReplFst {
 				} elseif ( $lastMatch !== null ) {
 					$this->queueEdge( $n, $seen, true );
 				} else {
-					$n = $this->emit( $n, MutableFST::EPSILON, $seen[0] );
-					$this->queueEdge( $n, substr( $seen, 1 ), true );
+					[ $firstChar, $rest ] = self::splitFirstUtf8Char( $seen );
+					$n = $this->emit( $n, MutableFST::EPSILON, $firstChar );
+					$this->queueEdge( $n, $rest, true );
 				}
 			} else {
 				$from->addEdge( MutableFST::EPSILON, MutableFST::EPSILON, $tree[self::STATE] );
@@ -188,9 +278,9 @@ class GenReplFst {
 		} else {
 			// no matches with this input string.  emit the first character
 			// verbatim and try to match again from the top.
-			$nextSeen = $seen . $input;
-			$n = $this->emit( $from, MutableFST::EPSILON, $nextSeen[0] );
-			$this->queueEdge( $n, substr( $nextSeen, 1 ), $endsWithIdentity );
+			[ $firstChar, $rest ] = self::splitFirstUtf8Char( $seen . $input );
+			$n = $this->emit( $from, MutableFST::EPSILON, $firstChar );
+			$this->queueEdge( $n, $rest, $endsWithIdentity );
 		}
 	}
 
@@ -219,7 +309,6 @@ class GenReplFst {
 		for ( $i = 0; $i < strlen( $s ); $i++ ) {
 			$toks[] = self::byteToHex( ord( $s[$i] ) );
 		}
-		$toks[] = "@EOF@";
 		return $toks;
 	}
 
@@ -232,9 +321,7 @@ class GenReplFst {
 	private static function tokensToString( array $toks ): string {
 		$s = '';
 		foreach ( $toks as $token ) {
-			if ( $token === '@EOF@' ) {
-				continue; // ignore, should be the last token
-			} elseif ( strlen( $token ) === 2 ) {
+			if ( strlen( $token ) === 2 ) {
 				$s .= chr( hexdec( $token ) );
 			} else {
 				// shouldn't happen, but handy for debugging if it does
@@ -281,7 +368,7 @@ class GenReplFst {
 		foreach ( $replacementTable as $from => $to ) {
 			self::addAlphabet( $alphabet, $from );
 			self::addAlphabet( $alphabet, $to );
-			self::addEntry( $this->prefixTree, $from, 0, $to );
+			self::addEntry( $this->prefixTree, $from, 0, 0, $to );
 		}
 		$this->alphabet = array_keys( $alphabet );
 		sort( $this->alphabet, SORT_NUMERIC );
@@ -289,25 +376,56 @@ class GenReplFst {
 		$this->fst = new MutableFST( array_map( function ( $n ) {
 			return self::byteToHex( $n );
 		}, $this->alphabet ) );
-		$this->fst->getStartState()->isFinal = true;
+		# $this->fst->getStartState()->isFinal = true;
 		$this->anythingState = $this->fst->newState();
 		$this->anythingState->addEdge(
 			MutableFST::IDENTITY, MutableFST::IDENTITY,
 			$this->fst->getStartState()
 		);
+		// The anything state could also be the end of the string
+		// (which for modelling purposes we can think of as a special
+		// "EOF" token not in the alphabet)
+		// Important that there are no outgoing edges from the $endState!
+		$endState = $this->fst->newState();
+		$endState->isFinal = true;
+		$this->anythingState->addEdge(
+			MutableFST::EPSILON, MutableFST::EPSILON,
+			$endState
+		);
+
+		// our first state must echo all continuation characters, since
+		// the anythingState transitions there and we don't know what
+		// utf8 state IDENTITY will leave us in. (The characters not in
+		// our alphabet could consiste of 1-/2-/3-/4-byte sequences.)
+		foreach ( self::utf8alphabet( 1/*continuation chars*/ ) as $c ) {
+			$this->fst->getStartState()->addEdge(
+				self::byteToHex( $c ), MutableFST::IDENTITY,
+				$this->fst->getStartState()
+			);
+		}
+
 		// Create states corresponding to prefix tree nodes
 		$this->buildState(
 			$this->fst->getStartState(), $this->prefixTree, null, ''
 		);
 		// Now handle the fixups ("replay" states)
+		$replayTable = [];
 		while ( count( $this->workQueue ) > 0 ) {
 			[ $state, $input, $endsWithIdentity ] = array_pop( $this->workQueue );
-			/*
-			error_log( "Starting over with $input " .
-					   "(ends w/ ID: $endsWithIdentity) link from " .
-					   $state->id );
-			*/
-			$this->followSeen( $this->prefixTree, $state, $input, null, '', $endsWithIdentity );
+			$key = $input . ( $endsWithIdentity ? '?' : '.' );
+			if ( !isset( $replayTable[$key] ) ) {
+				$replayTable[$key] = $this->fst->newState();
+				/*
+				error_log( "Starting over with $input " .
+						   "(ends w/ ID: $endsWithIdentity) link from " .
+						   $state->id );
+				*/
+				$this->followSeen( $this->prefixTree, $replayTable[$key], $input, null, '', $endsWithIdentity );
+			}
+			$state->addEdge(
+				MutableFST::EPSILON, MutableFST::EPSILON,
+				$replayTable[$key]
+			);
 		}
 		// ok, done!
 		$this->fst->optimize();
