@@ -2,13 +2,17 @@
 
 namespace Wikimedia\LangConv\Construct;
 
+use Wikimedia\Assert\Assert;
+
 /**
  * A mutable FST.
  */
 class MutableFST {
 	/** Special alphabet symbol for `nothing` used in AT&T format FST files. */
 	public const EPSILON = '@0@';
-	/** Special alphabet symbol for `?` used in AT&T format FST files. */
+	/** Special alphabet symbol for upper-side `?` used in AT&T format FST files. */
+	public const UNKNOWN = '@_UNKNOWN_SYMBOL_@';
+	/** Special alphabet symbol for lower-side `?` used in AT&T format FST files. */
 	public const IDENTITY = '@_IDENTITY_SYMBOL_@';
 
 	private $alphabet = [];
@@ -27,6 +31,7 @@ class MutableFST {
 		}
 		$this->alphabet[self::EPSILON] = true;
 		$this->alphabet[self::IDENTITY] = true;
+		$this->alphabet[self::UNKNOWN] = true;
 	}
 
 	/**
@@ -78,18 +83,21 @@ class MutableFST {
 		// the FST not efficient execution.
 		$results = [];
 		$stack = [];
-		$addTok = function ( $toks, $t ) {
-			if ( $t !== self::EPSILON ) {
+		$flagRE = '/^@([PNRDCU])[.]([^.@]+)(?:[.]([^@]+))?@$/D';
+		$addTok = function ( $toks, $t ) use ( $flagRE ) {
+			if ( $t === self::EPSILON || preg_match( $flagRE, $t ) ) {
+				// skip token
+			} else {
 				$toks[] = $t;
 			}
 			return $toks;
 		};
-		$stack[] = [ $this->getStartState(), 0, [] ];
+		$stack[] = [ $this->getStartState(), 0, [], [] ];
 		while ( count( $stack ) > 0 ) {
-			[ $state, $pos, $emitted ] = array_pop( $stack );
+			[ $state, $pos, $flags, $emitted ] = array_pop( $stack );
 			$tok = $pos < count( $input ) ? $input[$pos] : null;
 			if ( $tok !== null && !isset( $this->alphabet[$tok] ) ) {
-				$tok = self::IDENTITY;
+				$tok = self::UNKNOWN;
 			}
 			foreach ( $state->edges as $e ) {
 				if ( $isDown ) {
@@ -99,13 +107,49 @@ class MutableFST {
 					$match = $e->lower;
 					$output = $e->upper;
 				}
+				// Treat IDENTITY and UNKNOWN as identical (applyDown/applyUp)
+				if ( $match === self::IDENTITY ) {
+					$match = self::UNKNOWN;
+				}
+				if ( $output === self::UNKNOWN ) {
+					$output = self::IDENTITY;
+				}
+				// Does this edge match?
 				if ( $output === self::IDENTITY && $tok !== null ) {
 					$output = $input[$pos];
 				}
 				if ( $match === self::EPSILON ) {
-					$stack[] = [ $e->to, $pos, $addTok( $emitted, $output ) ];
+					$stack[] = [ $e->to, $pos, $flags, $addTok( $emitted, $output ) ];
+				} elseif ( preg_match( $flagRE, $match, $flagInfo, PREG_UNMATCHED_AS_NULL ) === 1 ) {
+					$op = $flagInfo[1];
+					$feature = $flagInfo[2];
+					$value = $flagInfo[3] ?? null;
+					$f = $flags[$feature] ?? null;
+					if ( $op === 'P' ) {
+						Assert::invariant( $value !== null, "P not C!" );
+						$flags[$feature] = $value;
+					} elseif ( $op === 'C' ) {
+						Assert::invariant( $value === null, "C not P!" );
+						$flags[$feature] = null;
+					} elseif ( $op === 'N' ) {
+						// @phan-suppress-next-line PhanImpossibleCondition
+						Assert::invariant( false, 'N not supported' );
+					} elseif ( $op === 'R' || $op === 'D' ) {
+						$m = ( $value === null ) ? ( $f !== null ) : ( $f === $value );
+						if ( $op === 'R' ? ( !$m ) : $m ) {
+							continue;
+						}
+					} elseif ( $op === 'U' ) {
+						Assert::invariant( $value !== null, "Unify with what?" );
+						if ( $f === null || $f === $value ) {
+							$flags[$feature] = $value;
+						} else {
+							continue;
+						}
+					}
+					$stack[] = [ $e->to, $pos, $flags, $addTok( $emitted, $output ) ];
 				} elseif ( $match === $tok && $tok !== null ) {
-					$stack[] = [ $e->to, $pos + 1, $addTok( $emitted, $output ) ];
+					$stack[] = [ $e->to, $pos + 1, $flags, $addTok( $emitted, $output ) ];
 				}
 			}
 			if ( $tok === null && $state->isFinal ) {
@@ -146,7 +190,9 @@ class MutableFST {
 					continue;
 				} elseif ( $nEdge === 1 ) {
 					$nextEdge = $edge->to->edges[0];
-					if (
+					if ( $nextEdge === null ) {
+						/* deleted.  Fall through. */
+					} elseif (
 						$edge->lower === self::EPSILON &&
 						$nextEdge->upper === self::EPSILON
 					) {

@@ -29,6 +29,20 @@ factor anywhere, but UTF-8 is (probably) still worthwhile because a factor of
 Of course maybe the actual A for CJK languages is closer to 4*256 than it
 is to 65536.
 
+One option: always use a "readahead" buffer of N characters long, so the
+state transitions are always on "@R.charN.M@".  Catch: we can't "read ahead"
+ for @IDENTITY@!  so the presence of an identity character means we need to
+ purge the buffer, echo it, and restart.  Basically use "@D.charN@" to
+indicate @IDENTITY@ (which includes end-of-string, conveniently enough).
+Tricky: every "read character" state is going to have a epsilon edge to
+"@C.charN" and then that path though the graph must always end in
+either ?:? or epsilon to a final state.  But we can waste a lot of
+evaluation time if we take that edge early.
+
+Better (more efficient) to only readahead where necessary. But will still
+have two edges
+
+
 
 Sample:
 
@@ -38,3 +52,30 @@ cbc -> ccc
 ba -> dd
 
 Input: abcbad
+
+-----------------
+Version in hfst seems to do something slightly different which is:
+after match 'ab' we then immediately emit 'aa' but continue in a new
+state machine which accepts (?* - 'cd') -- that is, it can't match any
+strings that match the completion which would make emitting 'ab' incorrect.
+something like:
+
+buildState($tree, $notTree, $prefix)
+
+which builds a machine matching $tree but disallowing any input which would
+match $notTree.  (And $prefix because we need to jump states/push input
+back into the buffer sometimes?)
+
+ie, as soon as we match 'ab' we fork:  one outgoing edge continues matching
+'abcd' or 'abdd' or whatever strings have 'ab' as a prefix; the other
+immediately emits 'aa' and loops back to run the original machine, but
+disallowing 'cd' or 'dd' as inputs.
+From the 'abc' state we don't need to worry about misses any more; any
+misses would have been caught by alternative branch from 'ab'.
+
+We pretend there's a top-level ?:? match, which matches when there is no
+longer match.  So all edges from root emit @ID@ then loop back to match
+from the root *except the relevant suffix strings*.
+
+In theory this could be done with flag diacritics where we indicate the
+value of the characters not allowed when we loop back?

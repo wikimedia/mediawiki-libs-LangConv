@@ -38,7 +38,7 @@ class GenReplFst extends Maintenance {
 				continue;
 			}
 			# error_log( $name );
-			$g = new ConsGenReplFst( $name, $table->getArray() );
+			$g = new ConsGenReplFst( $name, $table->getArray(), 'HANS' );
 			$g->writeATT( STDOUT );
 		}
 	}
