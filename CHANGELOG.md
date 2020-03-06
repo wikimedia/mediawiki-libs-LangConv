@@ -1,3 +1,6 @@
+# wikimedia-langconv 0.3.5 (2020-03-06)
+* Loosen dependency on wikimedia/assert to facilitate upgrades
+
 # wikimedia-langconv 0.3.4 (2020-03-06)
 * Version bumps to dependencies.
 * R&D code to support more efficient FST conversion of large string
