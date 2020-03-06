@@ -1,3 +1,8 @@
+# wikimedia-langconv 0.3.4 (2020-03-06)
+* Version bumps to dependencies.
+* R&D code to support more efficient FST conversion of large string
+  replacement tables; not yet used in production.
+
 # wikimedia-langconv 0.3.3 (2020-01-28)
 * Performance improvements to PHP port.
 
