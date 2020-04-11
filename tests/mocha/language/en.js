@@ -4,15 +4,14 @@
 
 /* global describe, it */
 
-require('../../../core-upgrade.js');
 require('chai').should();
 
 const domino = require('domino');
 
 describe('LanguageEn tests', function() {
 
-	const { LanguageConverter } =
-		require('../../../lib/language/LanguageConverter.js');
+	const { ReplacementMachine } =
+		require('../../../lib/ReplacementMachine.js');
 
 	const testCases = [
 		{
@@ -37,8 +36,7 @@ describe('LanguageEn tests', function() {
 		},
 	];
 
-	const Language = LanguageConverter.loadLanguage(null, 'en');
-	const machine = (new Language()).getConverter().getMachine();
+	const machine = new ReplacementMachine('en', 'en', 'en-x-piglatin');
 	['en','en-x-piglatin'].forEach((variantCode) => {
 		const invCode = variantCode === 'en' ? 'en-x-piglatin' : 'en';
 		testCases.forEach((test) => {

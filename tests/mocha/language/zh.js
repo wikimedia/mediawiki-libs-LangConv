@@ -4,15 +4,14 @@
 
 /* global describe, it */
 
-require('../../../core-upgrade.js');
 require('chai').should();
 
 const domino = require('domino');
 
 describe('LanguageZh tests', function() {
 
-	const { LanguageConverter } =
-		require('../../../lib/language/LanguageConverter.js');
+	const { ZhReplacementMachine } =
+		require('../../../lib/ZhReplacementMachine.js');
 
 	const testCases = [
 		{
@@ -122,8 +121,7 @@ describe('LanguageZh tests', function() {
 		},
 	];
 
-	const Language = LanguageConverter.loadLanguage(null, 'zh');
-	const machine = (new Language()).getConverter().getMachine();
+	const machine = new ZhReplacementMachine();
 	['zh-cn','zh-sg', 'zh-my', 'zh-hans', 'zh-tw', 'zh-hk', 'zh-mo', 'zh-hant'].forEach((variantCode) => {
 		const invCode = /^zh-(cn|sg|my|hans)$/.test(variantCode) ? 'zh-hant' : 'zh-hans';
 		testCases.forEach((test) => {

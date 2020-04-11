@@ -4,15 +4,14 @@
 
 /* global describe, it */
 
-require('../../../core-upgrade.js');
 require('chai').should();
 
 const domino = require('domino');
 
 describe('LanguageKu tests', function() {
 
-	const { LanguageConverter } =
-		require('../../../lib/language/LanguageConverter.js');
+	const { ReplacementMachine } =
+		require('../../../lib/ReplacementMachine.js');
 
 	const testCases = [
 		{
@@ -45,8 +44,7 @@ describe('LanguageKu tests', function() {
 		},
 	];
 
-	const Language = LanguageConverter.loadLanguage(null, 'ku');
-	const machine = (new Language()).getConverter().getMachine();
+	const machine = new ReplacementMachine('ku', 'ku-arab', 'ku-latn');
 	['ku-arab','ku-latn'].forEach((variantCode) => {
 		const invCode = variantCode === 'ku-arab' ? 'ku-latn' : 'ku-arab';
 		testCases.forEach((test) => {

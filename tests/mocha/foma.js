@@ -3,7 +3,7 @@
 /* global describe, it, Promise */
 require('chai').should();
 
-const Promise = require('../../lib/utils/promise.js');
+const Promise = require('prfun/wrap')(require('babybird'));
 
 const childProcess = require('pn/child_process');
 const path = require('path');

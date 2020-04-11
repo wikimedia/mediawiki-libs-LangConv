@@ -4,15 +4,14 @@
 
 /* global describe, it */
 
-require('../../../core-upgrade.js');
 require('chai').should();
 
 const domino = require('domino');
 
 describe('Language/CRH tests', function() {
 
-	const { LanguageConverter } =
-		require('../../../lib/language/LanguageConverter.js');
+	const { ReplacementMachine } =
+		require('../../../lib/ReplacementMachine.js');
 
 	const testCases = [
 		{
@@ -206,8 +205,7 @@ describe('Language/CRH tests', function() {
 		},
 	];
 
-	const Language = LanguageConverter.loadLanguage(null, 'crh');
-	const machine = (new Language()).getConverter().getMachine();
+	const machine = new ReplacementMachine('crh', 'crh-latn', 'crh-cyrl');
 	['crh-cyrl','crh-latn'].forEach((variantCode) => {
 		const invCode = variantCode === 'crh-cyrl' ? 'crh-latn' : 'crh-cyrl';
 		testCases.forEach((test) => {
