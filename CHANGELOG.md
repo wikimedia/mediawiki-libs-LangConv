@@ -1,3 +1,9 @@
+# wikimedia-langconv 0.4.0 (not yet released)
+* Refactor ReplacementMachine in PHP port; add new classes
+  FstReplacementMachine and NullReplacementMachine.
+  This is a breaking change; replace references to ReplacementMachine
+  in your code with FstReplacementMachine.
+
 # wikimedia-langconv 0.3.5 (2020-03-06)
 * Loosen dependency on wikimedia/assert to facilitate upgrades
 

@@ -4,17 +4,17 @@ namespace Test\Wikimedia\LangConv;
 
 use DOMDocument;
 use PHPUnit\Framework\TestCase;
-use Wikimedia\LangConv\ReplacementMachine;
+use Wikimedia\LangConv\FstReplacementMachine;
 
 /**
- * @coversDefaultClass \Wikimedia\LangConv\ReplacementMachine
+ * @coversDefaultClass \Wikimedia\LangConv\FstReplacementMachine
  */
-class ReplacementMachineTest extends TestCase {
-	/** @var ReplacementMachine|null */
+class FstReplacementMachineTest extends TestCase {
+	/** @var FstReplacementMachine|null */
 	private static $machine;
 
 	public static function setUpBeforeClass(): void {
-		self::$machine = new ReplacementMachine( 'sr', [ 'sr-ec', 'sr-el' ] );
+		self::$machine = new FstReplacementMachine( 'sr', [ 'sr-ec', 'sr-el' ] );
 	}
 
 	public static function tearDownAfterClass(): void {
