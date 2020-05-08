@@ -1,7 +1,7 @@
 {
 	"name": "wikimedia/langconv",
 	"description": "Finite-State Transducer implementation of MediaWiki LanguageConverter",
-	"homepage": "https://gerrit.wikimedia.org/g/mediawiki/libs/LangConv",
+	"homepage": "https://www.mediawiki.org/wiki/LangConv",
 	"authors": [
 		{
 			"name": "Wikimedia Parsing Team and the broader MediaWiki community",

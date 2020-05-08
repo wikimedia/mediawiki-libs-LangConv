@@ -124,7 +124,7 @@ describe('Foma FST verification', function() {
 				});
 			});
 
-			// Now compile the .att files to .json files
+			// Now compile the .att files to .pfst files
 			describe("Building .pfst files", function() {
 				l.variants.forEach(args => it(args.join(' '), function() {
 					const cp = childProcess.fork(
