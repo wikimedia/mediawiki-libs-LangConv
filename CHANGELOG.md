@@ -1,4 +1,6 @@
 # wikimedia-langconv x.x.x (not yet released)
+* Don't distribute the .att files in the composer library (they were already
+  omitted from the npm library)
 
 # wikimedia-langconv 0.4.0 (2020-05-05)
 * Refactor ReplacementMachine in PHP port; add new classes

@@ -2,3 +2,5 @@
 composer.json export-ignore
 phpunit.xml.dist export-ignore
 tests/ export-ignore
+# intermediate files (but costly to recompute, which is why they are in git)
+fst/*.att export-ignore
