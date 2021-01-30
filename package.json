@@ -3,7 +3,7 @@
 	"version": "0.4.1+git",
 	"description": "Finite-State Transducer implementation of MediaWiki LanguageConverter",
 	"devDependencies": {
-		"eslint-config-wikimedia": "0.18.0",
+		"eslint-config-wikimedia": "0.18.1",
 		"jsdoc": "^3.5.5",
 		"jsdoc-wmf-theme": "0.0.3",
 		"mocha": "^7.1.2",
