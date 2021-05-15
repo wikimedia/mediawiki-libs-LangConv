@@ -126,7 +126,7 @@ class FstReplacementMachine extends ReplacementMachine {
 				// more appropriate invertCode !== destCode.
 				$ic = $invertCode;
 				if ( $ic === $destCode ) {
-					$cs = array_values( array_filter( $this->codes, function ( $code ) use ( $destCode ) {
+					$cs = array_values( array_filter( $this->codes, static function ( $code ) use ( $destCode ) {
 						return $code !== $destCode;
 					} ) );
 					$cs = array_map( function ( $code ) use ( $orig ) {
@@ -135,7 +135,7 @@ class FstReplacementMachine extends ReplacementMachine {
 							'stats' => $this->countBrackets( $orig, $code, $code ),
 						];
 					}, $cs );
-					uasort( $cs, function ( $a, $b ) {
+					uasort( $cs, static function ( $a, $b ) {
 						return $a['stats']->unsafe - $b['stats']->unsafe;
 					} );
 					if ( count( $cs ) === 0 ) {

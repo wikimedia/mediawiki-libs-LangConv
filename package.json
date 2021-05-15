@@ -3,15 +3,15 @@
 	"version": "0.4.1+git",
 	"description": "Finite-State Transducer implementation of MediaWiki LanguageConverter",
 	"devDependencies": {
+		"babybird": "^0.0.1",
+		"chai": "^4.2.0",
+		"domino": "^2.1.0",
 		"eslint-config-wikimedia": "0.20.0",
-		"jsdoc": "^3.5.5",
+		"jsdoc": "^3.6.7",
 		"jsdoc-wmf-theme": "0.0.3",
 		"mocha": "^7.1.2",
-		"chai": "^4.2.0",
-		"babybird": "^0.0.1",
 		"pn": "^1.1.0",
-		"prfun": "^2.1.5",
-		"domino": "^2.1.0"
+		"prfun": "^2.1.5"
 	},
 	"main": "lib/index.js",
 	"scripts": {
