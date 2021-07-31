@@ -26,7 +26,6 @@
 		],
 
 		"max-len": "off",
-		"vars-on-top": "off",
 		"wrap-iife": "off",
 		"object-shorthand": "off",
 		"func-style": "off",
