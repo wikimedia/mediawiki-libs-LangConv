@@ -1,27 +1,31 @@
-# Doxyfile for langconv
-#
-# See <http://www.doxygen.nl/manual/config.html>
-# for help on how to use this file to configure Doxygen.
+# Doxyfile <https://www.doxygen.nl/manual/config.html>
 PROJECT_NAME           = "Language Converter"
-PROJECT_BRIEF          = "FST-based implementation of MediaWiki LanguageConverter"
+PROJECT_BRIEF          = "Finite-State Transducer implementation of MediaWiki LanguageConverter"
 OUTPUT_DIRECTORY       = doc
 JAVADOC_AUTOBRIEF      = YES
 QT_AUTOBRIEF           = YES
+QUIET                  = YES
 WARN_NO_PARAMDOC       = YES
-INPUT                  = README.md src/
+ALIASES                = "type{1}=<b> \1 </b>:" \
+                         "types{2}=<b> \1 </b> or <b> \2 </b>:" \
+                         "types{3}=<b> \1 </b>, <b> \2 </b>, or <b> \3 </b>:" \
+                         "access=\par Access:\n" \
+                         "private=\access private" \
+                         "protected=\access protected" \
+                         "copyright=\note" \
+                         "license=\note" \
+                         "inheritDoc=\inheritdoc" \
+                         "codeCoverageIgnore=" \
+                         "phpcs=" \
+                         "phan=" \
+                         "suppress=" \
+                         "stable=Stable"
+INPUT                  = README.md HISTORY.md CODE_OF_CONDUCT.md src/
 FILE_PATTERNS          = *.php
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = README.md
-# FILTER_PATTERNS        = *md=build/doxygen_escape.sh
 HTML_DYNAMIC_SECTIONS  = YES
 GENERATE_TREEVIEW      = YES
 TREEVIEW_WIDTH         = 250
 GENERATE_LATEX         = NO
-HAVE_DOT               = YES
-DOT_FONTNAME           = Helvetica
-DOT_FONTSIZE           = 10
-TEMPLATE_RELATIONS     = YES
-CALL_GRAPH             = NO
-CALLER_GRAPH           = NO
-DOT_MULTI_TARGETS      = YES
-ALIASES                = "inheritDoc=\inheritdoc"
+GENERATE_TAGFILE       = doc/html/tagfile.xml

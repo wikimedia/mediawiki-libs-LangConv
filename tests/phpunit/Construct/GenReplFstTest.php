@@ -1,6 +1,6 @@
 <?php
 
-namespace Test\Wikimedia\LangConv\Construct;
+namespace Wikimedia\LangConv\Test\Construct;
 
 use PHPUnit\Framework\TestCase;
 use Wikimedia\LangConv\Construct\GenReplFst;

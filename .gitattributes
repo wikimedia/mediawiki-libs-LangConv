@@ -1,6 +1,7 @@
-.* export-ignore
-composer.json export-ignore
-phpunit.xml.dist export-ignore
-tests/ export-ignore
+/.* export-ignore
+/tests/ export-ignore
+/composer.json export-ignore
+/Doxyfile export-ignore
+/phpunit.xml.dist export-ignore
 # intermediate files (but costly to recompute, which is why they are in git)
 fst/*.att export-ignore

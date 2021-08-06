@@ -1,6 +1,7 @@
 {
 	"name": "wikimedia/langconv",
 	"description": "Finite-State Transducer implementation of MediaWiki LanguageConverter",
+	"license": "GPL-2.0-or-later",
 	"homepage": "https://www.mediawiki.org/wiki/LangConv",
 	"authors": [
 		{
@@ -8,7 +9,6 @@
 			"homepage": "https://www.mediawiki.org/wiki/Parsoid"
 		}
 	],
-	"license": "GPL-2.0-or-later",
 	"support": {
 		"irc": "irc://irc.libera.chat/mediawiki-parsoid",
 		"wiki": "https://www.mediawiki.org/wiki/Parsoid"
@@ -18,10 +18,20 @@
 		"wikimedia",
 		"language converter"
 	],
+	"autoload": {
+		"psr-4": {
+			"Wikimedia\\LangConv\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Wikimedia\\LangConv\\Tests\\": "tests/phpunit/"
+		}
+	},
 	"require": {
 		"ext-dom": "*",
 		"ext-json": "*",
-		"php": ">=7.2.0",
+		"php": ">=7.2.9",
 		"wikimedia/assert": "0.4.0|^0.5.0"
 	},
 	"require-dev": {
@@ -31,39 +41,25 @@
 		"ockcyp/covers-validator": "1.3.3",
 		"php-parallel-lint/php-console-highlighter": "0.5.0",
 		"php-parallel-lint/php-parallel-lint": "1.3.0",
-		"phpspec/phpspec": "^6.1",
-		"phpunit/phpunit": "^8.5",
-		"wikimedia/testing-access-wrapper": "~1.0"
-	},
-	"autoload": {
-		"psr-4": {
-			"Wikimedia\\LangConv\\": [
-				"src"
-			]
-		}
-	},
-	"autoload-dev": {
-		"psr-4": {
-			"Test\\Wikimedia\\LangConv\\": "tests/phpunit/"
-		}
+		"phpunit/phpunit": "^8.5|^9.5",
+		"wikimedia/update-history": "^1.0.1"
 	},
 	"scripts": {
 		"test": [
 			"parallel-lint . --exclude vendor --exclude node_modules",
-			"phpcs -p -s",
-			"minus-x check .",
+			"phpunit",
 			"covers-validator",
-			"@phpunit",
-			"phpspec run -v --ansi",
-			"@phan"
+			"phpcs -sp",
+			"@phan",
+			"minus-x check ."
 		],
-		"phpunit": "phpunit",
-		"fix": [
-			"minus-x fix .",
-			"phpcbf"
-		],
+		"phan": "phan --allow-polyfill-parser",
 		"cover": "phpunit --coverage-html coverage",
-		"phan": "PHAN_DISABLE_XDEBUG_WARN=1 phan --allow-polyfill-parser"
+		"fix": [
+			"phpcbf",
+			"minus-x fix ."
+		],
+		"update-history": "update-history patch"
 	},
 	"config": {
 		"process-timeout": 0,

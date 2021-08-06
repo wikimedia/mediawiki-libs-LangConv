@@ -1,6 +1,6 @@
 <?php
 
-namespace Test\Wikimedia\LangConv;
+namespace Wikimedia\LangConv\Test;
 
 use DOMDocument;
 use PHPUnit\Framework\TestCase;
