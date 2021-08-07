@@ -1,5 +1,7 @@
 # Release History
 
+## wikimedia-langconv x.x.x (not yet released)
+
 ## wikimedia-langconv 0.4.2 (2021-08-07)
 * Update dependencies.
 
