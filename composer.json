@@ -56,8 +56,8 @@
 		"phan": "phan --allow-polyfill-parser",
 		"cover": "phpunit --coverage-html coverage",
 		"fix": [
-			"phpcbf",
-			"minus-x fix ."
+			"minus-x fix .",
+			"phpcbf"
 		],
 		"update-history": "update-history patch"
 	},
