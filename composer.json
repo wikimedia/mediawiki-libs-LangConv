@@ -49,7 +49,7 @@
 			"parallel-lint . --exclude vendor --exclude node_modules",
 			"phpunit",
 			"covers-validator",
-			"phpcs -sp",
+			"@phpcs",
 			"@phan",
 			"minus-x check ."
 		],
@@ -59,7 +59,8 @@
 			"minus-x fix .",
 			"phpcbf"
 		],
-		"update-history": "update-history patch"
+		"update-history": "update-history patch",
+		"phpcs": "phpcs -sp"
 	},
 	"config": {
 		"process-timeout": 0,
