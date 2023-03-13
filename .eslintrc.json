@@ -24,7 +24,6 @@
 				"initialized": "never"
 			}
 		],
-
 		"max-len": "off",
 		"wrap-iife": "off",
 		"object-shorthand": "off",
@@ -34,10 +33,8 @@
 		"default-case": "off",
 		"consistent-this": "off",
 		"guard-for-in": "off",
-
 		"prefer-arrow-callback": "off",
 		"prefer-template": "off",
-
 		"no-tabs": "off",
 		"no-var": "off",
 		"no-console": "off",
@@ -51,12 +48,11 @@
 		"no-lonely-if": "off",
 		"no-nested-ternary": "off",
 		"no-unmodified-loop-condition": "off",
-
 		"no-buffer-constructor": "warn",
-
 		"jsdoc/newline-after-description": [
 			"off",
 			"never"
-		]
+		],
+		"es-x/no-hashbang": "warn"
 	}
 }
