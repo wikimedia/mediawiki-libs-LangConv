@@ -6,7 +6,7 @@
 		"babybird": "^0.0.1",
 		"chai": "^4.2.0",
 		"domino": "^2.1.0",
-		"eslint-config-wikimedia": "0.24.0",
+		"eslint-config-wikimedia": "0.25.0",
 		"jsdoc": "^3.6.7",
 		"jsdoc-wmf-theme": "0.0.3",
 		"mocha": "^7.1.2",
