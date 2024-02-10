@@ -126,7 +126,7 @@ describe('LanguageZh tests', function() {
 		const invCode = /^zh-(cn|sg|my|hans)$/.test(variantCode) ? 'zh-hant' : 'zh-hans';
 		testCases.forEach((test) => {
 			if (variantCode in test.output) {
-				it(`${test.title} [${variantCode}]`, function() {
+				it(`${ test.title } [${ variantCode }]`, function() {
 					const doc = domino.createDocument();
 					const out = machine.convert(
 						doc, test.input, variantCode, test.code || invCode

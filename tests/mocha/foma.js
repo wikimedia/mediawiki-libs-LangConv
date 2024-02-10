@@ -71,9 +71,9 @@ describe('Foma FST verification', function() {
 	const fstDir = path.resolve(rootDir, 'fst');
 	const toolsDir = path.resolve(rootDir, 'tools');
 	langs.forEach((l) => {
-		describe(`Compiling ${l.base}.foma`, function() {
+		describe(`Compiling ${ l.base }.foma`, function() {
 			this.timeout(100000); /* compilation can take a while */
-			const fomaFile = `${l.base}${l.examples ? '-examples' : ''}.foma`;
+			const fomaFile = `${ l.base }${ l.examples ? '-examples' : '' }.foma`;
 			// This has to be sync, since we're going to create test cases
 			// based on the result of this, and mocha doesn't support async
 			// test case generation.
@@ -94,7 +94,7 @@ describe('Foma FST verification', function() {
 			// EXPECT: is a shorthand for one-line tests
 			result = result.replace(
 				/^EXPECT(?:\[(.*)\])?: (.*)$/mg,
-				(m, name, out) => `<EXPECT ${name || out}>\n${out}\n</EXPECT>`
+				(m, name, out) => `<EXPECT ${ name || out }>\n${ out }\n</EXPECT>`
 			);
 
 			// Split on <EXPECT>
@@ -104,7 +104,7 @@ describe('Foma FST verification', function() {
 				let cnt = 0;
 				for (let i = 1; i < tests.length; i += 2) {
 					let name = tests[i].trim();
-					name = `line ${lineNum + 1}${name ? ': ' + name : ''}`;
+					name = `line ${ lineNum + 1 }${ name ? ': ' + name : '' }`;
 					let [part1, part2] = tests[i + 1].split('</EXPECT>\n', 2);
 					part1 = part1.split(/^/mg);
 					part2 = part2.split(/^/mg);

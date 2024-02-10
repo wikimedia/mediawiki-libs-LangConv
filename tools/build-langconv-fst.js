@@ -91,6 +91,7 @@ class DefaultMap extends Map {
 		super();
 		this.makeDefaultValue = makeDefaultValue;
 	}
+
 	getDefault(key) {
 		if (!this.has(key)) {
 			this.set(key, this.makeDefaultValue());
@@ -177,6 +178,7 @@ class DynamicBuffer {
 		this.buffers = [ this.currBuff ];
 		this.lastLength = 0;
 	}
+
 	emit(b) {
 		console.assert(b !== undefined);
 		if (this.offset >= this.currBuff.length) {
@@ -187,6 +189,7 @@ class DynamicBuffer {
 		this.currBuff[this.offset++] = b;
 		this._maybeUpdateLength();
 	}
+
 	emitUnsignedV(val, pad) {
 		const o = [];
 		/* eslint-disable no-bitwise */
@@ -204,6 +207,7 @@ class DynamicBuffer {
 			}
 		}
 	}
+
 	emitSignedV(val, pad) {
 		if (val >= 0) {
 			val *= 2;
@@ -212,22 +216,27 @@ class DynamicBuffer {
 		}
 		this.emitUnsignedV(val, pad);
 	}
+
 	position() {
 		return this.offset + this.buffNum * this.chunkLength;
 	}
+
 	length() {
 		return this.lastLength + (this.buffers.length - 1) * this.chunkLength;
 	}
+
 	truncate() {
 		this.lastLength = this.offset;
 		this.buffers.length = this.buffNum + 1;
 	}
+
 	_maybeCreateBuffers() {
 		while (this.buffNum >= this.buffers.length) {
 			this.buffers.push(Buffer.alloc(this.chunkLength));
 			this.lastLength = 0;
 		}
 	}
+
 	_maybeUpdateLength() {
 		if (
 			this.offset > this.lastLength &&
@@ -236,6 +245,7 @@ class DynamicBuffer {
 			this.lastLength = this.offset;
 		}
 	}
+
 	seek(pos) {
 		console.assert(pos !== undefined);
 		this.buffNum = Math.floor(pos / this.chunkLength);
@@ -244,6 +254,7 @@ class DynamicBuffer {
 		this.currBuff = this.buffers[this.buffNum];
 		this._maybeUpdateLength();
 	}
+
 	read() {
 		if (this.offset >= this.currBuff.length) {
 			this.buffNum++; this.offset = 0;
@@ -254,6 +265,7 @@ class DynamicBuffer {
 		this._maybeUpdateLength();
 		return b;
 	}
+
 	readUnsignedV() {
 		let b = this.read();
 		/* eslint-disable no-bitwise */
@@ -266,6 +278,7 @@ class DynamicBuffer {
 		/* eslint-enable no-bitwise */
 		return val;
 	}
+
 	readSignedV() {
 		const v = this.readUnsignedV();
 		/* eslint-disable no-bitwise */
@@ -276,6 +289,7 @@ class DynamicBuffer {
 		}
 		/* eslint-enable no-bitwise */
 	}
+
 	writeFile(outFile) {
 		const fd = fs.openSync(outFile, 'w');
 		try {
@@ -310,7 +324,7 @@ function processOne(inFile, outFile, verbose, justBrackets, maxEdgeBytes) {
 			console.assert(b !== 0 && b < 0xF8);
 			return b;
 		}
-		console.assert(false, `Bad symbol: ${sym}`);
+		console.assert(false, `Bad symbol: ${ sym }`);
 	};
 	// Quickly read through once in order to pull out the set of final states
 	// and the alphabet
@@ -440,7 +454,7 @@ function processOne(inFile, outFile, verbose, justBrackets, maxEdgeBytes) {
 			out.seek(p);
 			const state = out.readSignedV();
 			out.seek(p);
-			console.assert(stateMap.has(state), `${state} not found`);
+			console.assert(stateMap.has(state), `${ state } not found`);
 			out.emitSignedV(stateMap.get(state) - p, edgeWidth - 2);
 		}
 		out.seek(edge0 + nEdges * edgeWidth);
@@ -574,15 +588,15 @@ function main() {
 		const inverseLangs = argv.language.slice(1);
 		const baseDir = path.join(__dirname, '..', 'fst');
 		for (const f of [
-			`trans-${convertLang}`,
-			`brack-${convertLang}-noop`,
-		].concat(inverseLangs.map((inv) => `brack-${convertLang}-${inv}`))) {
+			`trans-${ convertLang }`,
+			`brack-${ convertLang }-noop`,
+		].concat(inverseLangs.map((inv) => `brack-${ convertLang }-${ inv }`))) {
 			if (argv.verbose) {
 				console.log(f);
 			}
 			processOne(
-				path.join(baseDir, `${f}.att`),
-				path.join(baseDir, `${f}.pfst`),
+				path.join(baseDir, `${ f }.att`),
+				path.join(baseDir, `${ f }.pfst`),
 				argv.verbose
 			);
 		}

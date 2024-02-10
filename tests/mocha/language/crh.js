@@ -210,7 +210,7 @@ describe('Language/CRH tests', function() {
 		const invCode = variantCode === 'crh-cyrl' ? 'crh-latn' : 'crh-cyrl';
 		testCases.forEach((test) => {
 			if (variantCode in test.output) {
-				it(`${test.title} [${variantCode}]`, () => {
+				it(`${ test.title } [${ variantCode }]`, () => {
 					const doc = domino.createDocument();
 					const out = machine.convert(
 						doc, test.input, variantCode, test.code || invCode
