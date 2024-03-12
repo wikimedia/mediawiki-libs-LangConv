@@ -55,7 +55,7 @@ class FstReplacementMachine extends ReplacementMachine {
 	 * @return FST
 	 */
 	public function loadFST( string $filename, bool $justBrackets = false ): FST {
-		return FST::compile( __dir__ . "/../fst/$filename.pfst", $justBrackets );
+		return FST::compile( __DIR__ . "/../fst/$filename.pfst", $justBrackets );
 	}
 
 	/**
