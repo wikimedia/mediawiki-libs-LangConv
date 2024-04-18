@@ -8,6 +8,7 @@
  * The input is expected to be a "byte machine", that is, unicode code units
  * have already been decomposed into code points corresponding to UTF-8
  * bytes.  Symbols used in the ATT file:
+ *
  *  @0@      Epsilon ("no character").  Used in both input and output edges;
  *           as an input edge this introduced nondeterminism.
  *  <hh>    The input byte with hexadecimal value <hh>
