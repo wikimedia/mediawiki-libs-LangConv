@@ -7,8 +7,8 @@
 		"chai": "^4.2.0",
 		"domino": "^2.1.0",
 		"eslint-config-wikimedia": "0.28.2",
-		"jsdoc": "4.0.2",
-		"jsdoc-wmf-theme": "1.0.1",
+		"jsdoc": "4.0.3",
+		"jsdoc-wmf-theme": "1.1.0",
 		"mocha": "^7.1.2",
 		"pn": "^1.1.0",
 		"prfun": "^2.1.5"
