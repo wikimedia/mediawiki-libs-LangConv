@@ -8,8 +8,11 @@ use Wikimedia\Assert\Assert;
 
 class FstReplacementMachine extends ReplacementMachine {
 
+	/** @var string */
 	private $baseLanguage;
+	/** @var array<string,string> */
 	private $codes = [];
+	/** @var array<string,array> */
 	private $machines = [];
 
 	/**
