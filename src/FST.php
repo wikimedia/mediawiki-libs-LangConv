@@ -51,8 +51,7 @@ class FST {
 			"pFST file too short: $name"
 		);
 		Assert::precondition(
-			"pFST\0WM\0" ===
-			substr( $pfst, 0, self::MAGIC_BYTES ),
+			substr( $pfst, 0, self::MAGIC_BYTES ) === "pFST\0WM\0",
 			"Invalid pFST file: $name"
 		);
 	}
