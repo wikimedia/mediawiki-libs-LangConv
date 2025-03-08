@@ -9,7 +9,8 @@
 		"eslint-config-wikimedia": "0.29.1",
 		"jsdoc": "4.0.4",
 		"jsdoc-wmf-theme": "1.1.0",
-		"mocha": "^7.1.2",
+		"mocha": "11.1.0",
+		"nyc": "17.1.0",
 		"pn": "^1.1.0",
 		"prfun": "^2.1.5"
 	},
@@ -17,7 +18,7 @@
 	"scripts": {
 		"eslint": "eslint lib",
 		"eslint-fix": "eslint --fix lib",
-		"mocha": "mocha --opts tests/mocha/mocha.opts tests/mocha",
+		"mocha": "nyc --reporter text-summary _mocha --recursive --timeout 10000 --check-leaks tests/mocha",
 		"rebuild-foma": "LANGCONV_TEST_FOMA=1 npm run mocha",
 		"test": "npm run eslint && npm run mocha",
 		"doc": "jsdoc -c jsdoc.json"
