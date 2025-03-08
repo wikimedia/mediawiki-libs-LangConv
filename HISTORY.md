@@ -1,6 +1,7 @@
 # Release History
 
-## wikimedia-langconv x.x.x (not yet released)
+## wikimedia-langconv 0.5.0 (2025-03-07)
+* [BREAKING CHANGE] Drop PHP 7.2 and PHP 7.3 support (James D. Forrester)
 
 ## wikimedia-langconv 0.4.2 (2021-08-07)
 * Update dependencies.
