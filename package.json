@@ -5,7 +5,7 @@
 	"devDependencies": {
 		"babybird": "^0.0.1",
 		"chai": "^4.2.0",
-		"domino": "^2.1.0",
+		"domino": "^2.1.6",
 		"eslint-config-wikimedia": "0.29.1",
 		"jsdoc": "4.0.4",
 		"jsdoc-wmf-theme": "1.1.0",
