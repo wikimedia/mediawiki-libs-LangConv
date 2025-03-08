@@ -3,5 +3,8 @@
 /composer.json export-ignore
 /Doxyfile export-ignore
 /phpunit.xml.dist export-ignore
+package.json export-ignore
+package-lock.json export-ignore
+jsdoc.json export-ignore
 # intermediate files (but costly to recompute, which is why they are in git)
 fst/*.att export-ignore
