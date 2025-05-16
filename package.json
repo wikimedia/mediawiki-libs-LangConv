@@ -16,7 +16,7 @@
 	},
 	"main": "lib/index.js",
 	"scripts": {
-		"eslint": "eslint lib",
+		"eslint": "eslint --cache lib",
 		"eslint-fix": "eslint --fix lib",
 		"mocha": "nyc --reporter text-summary _mocha --recursive --timeout 10000 --check-leaks tests/mocha",
 		"rebuild-foma": "LANGCONV_TEST_FOMA=1 npm run mocha",
