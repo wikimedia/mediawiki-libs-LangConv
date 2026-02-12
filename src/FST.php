@@ -67,7 +67,7 @@ class FST {
 		// input at the bracket locations and return an array of strings.
 		Assert::precondition( $this->justBrackets,
 							 "Needs a bracket machine: " . $this->name );
-		$end = $end ?? strlen( $input );
+		$end ??= strlen( $input );
 		$r = $this->run( $input, $start, $end );
 		$r[] = $end;
 		$i = 0;
@@ -117,8 +117,8 @@ class FST {
 	 * @return string|array
 	 */
 	public function run( string $input, ?int $start = null, ?int $end = null, bool $unicode = false ) {
-		$start = $start ?? 0;
-		$end = $end ?? strlen( $input );
+		$start ??= 0;
+		$end ??= strlen( $input );
 		$countCodePoints = $this->justBrackets && $unicode;
 		$initialState = self::MAGIC_BYTES + 2; /* eof state */
 		$state = $initialState;
