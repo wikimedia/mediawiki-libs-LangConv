@@ -1,4 +1,6 @@
 <?php
+declare( strict_types = 1 );
+
 /**
  * Find and include Maintenance.php from mediawiki-core.
  *

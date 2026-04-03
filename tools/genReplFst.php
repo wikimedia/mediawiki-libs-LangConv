@@ -1,4 +1,6 @@
 <?php
+declare( strict_types = 1 );
+
 /**
  * Generate an efficient FST from a conversion table, as (say) provided
  * to str_replace().
