@@ -153,25 +153,6 @@ class GenReplFst {
 	}
 
 	/**
-	 * Split a given string into the first utf8 char, and "everything else".
-	 * @param string $s
-	 * @return string[]
-	 */
-	private static function splitFirstUtf8Char( string $s ) {
-		$utf8state = 0;
-		$i = 0;
-		while ( $i < strlen( $s ) ) {
-			$c = ord( $s[$i] );
-			$utf8state = self::nextUtf8State( $utf8state, $c );
-			$i += 1;
-			if ( $utf8state === 0 ) {
-				break;
-			}
-		}
-		return [ substr( $s, 0, $i ), substr( $s, $i ) ];
-	}
-
-	/**
 	 * Return the name of a flag diacritic for matching character at a
 	 * specified offset.
 	 * @param string $type Flag diacritic operator: P/R/D/C/U
